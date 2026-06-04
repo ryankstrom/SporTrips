@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>SporTrips — Sports Road Trip Machine</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg%20xmlns%3D%27http%3A%2F%2Fwww.w3.org%2F2000%2Fsvg%27%20viewBox%3D%270%200%2096%2096%27%3E%3Crect%20x%3D%272%27%20y%3D%272%27%20width%3D%2792%27%20height%3D%2792%27%20rx%3D%2722%27%20fill%3D%27%23161b22%27%20stroke%3D%27%232b3340%27%20stroke-width%3D%272%27%2F%3E%3Ctext%20x%3D%2748%27%20y%3D%2740%27%20font-family%3D%27Arial%2CHelvetica%2Csans-serif%27%20font-weight%3D%27800%27%20font-size%3D%2740%27%20fill%3D%27%23fff%27%20text-anchor%3D%27middle%27%20dominant-baseline%3D%27central%27%3EST%3C%2Ftext%3E%3Cpath%20d%3D%27M14%2072%20Q34%2058%2048%2072%20T82%2072%27%20fill%3D%27none%27%20stroke%3D%27%2336c5f0%27%20stroke-width%3D%273%27%20stroke-dasharray%3D%271%206%27%20stroke-linecap%3D%27round%27%2F%3E%3Ccircle%20cx%3D%2714%27%20cy%3D%2772%27%20r%3D%276%27%20fill%3D%27%231f6feb%27%2F%3E%3Ccircle%20cx%3D%2737%27%20cy%3D%2766%27%20r%3D%276%27%20fill%3D%27%23db6d28%27%2F%3E%3Ccircle%20cx%3D%2759%27%20cy%3D%2766%27%20r%3D%276%27%20fill%3D%27%23a371f7%27%2F%3E%3Ccircle%20cx%3D%2782%27%20cy%3D%2772%27%20r%3D%276%27%20fill%3D%27%233fb950%27%2F%3E%3C%2Fsvg%3E">
 <style>
   :root{
     --bg:#0d1117; --panel:#161b22; --panel2:#1c2330; --line:#2b3340;
@@ -22,9 +23,9 @@
   }
   header{padding:26px 22px 14px; max-width:1180px; margin:0 auto;}
   .brand{display:flex;align-items:center;gap:12px}
-  .logo{width:42px;height:42px;border-radius:11px;
-    background:linear-gradient(135deg,var(--accent),#ffb13c);
-    display:grid;place-items:center;font-size:22px;box-shadow:var(--shadow);}
+  .logo{width:42px;height:42px;border-radius:11px;display:grid;place-items:center;
+    box-shadow:var(--shadow);overflow:hidden}
+  .logo svg{width:42px;height:42px;display:block}
   h1{margin:0;font-size:24px;letter-spacing:.3px}
   .tagline{color:var(--muted);font-size:13.5px;margin-top:2px}
   .wrap{max-width:1180px;margin:0 auto;padding:0 22px 60px;
@@ -155,7 +156,19 @@
 <body>
 <header>
   <div class="brand">
-    <div class="logo">🏟️</div>
+    <div class="logo">
+      <svg viewBox="0 0 96 96" width="42" height="42" role="img" aria-label="SporTrips logo">
+        <rect x="2" y="2" width="92" height="92" rx="22" fill="#161b22" stroke="#2b3340" stroke-width="2"/>
+        <text x="48" y="40" font-family="Arial,Helvetica,sans-serif" font-weight="800" font-size="40"
+              fill="#fff" text-anchor="middle" dominant-baseline="central">ST</text>
+        <path d="M14 72 Q34 58 48 72 T82 72" fill="none" stroke="#36c5f0" stroke-width="3"
+              stroke-dasharray="1 6" stroke-linecap="round"/>
+        <circle cx="14" cy="72" r="6" fill="#1f6feb"/>
+        <circle cx="37" cy="66" r="6" fill="#db6d28"/>
+        <circle cx="59" cy="66" r="6" fill="#a371f7"/>
+        <circle cx="82" cy="72" r="6" fill="#3fb950"/>
+      </svg>
+    </div>
     <div>
       <h1>SporTrips</h1>
       <div class="tagline">The sports road-trip machine — live schedules, real drive times, start from anywhere.</div>
