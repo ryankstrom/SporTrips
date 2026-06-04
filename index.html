@@ -103,6 +103,16 @@
   .empty{display:grid;place-items:center;text-align:center;color:var(--muted);
     padding:60px 20px;border:1px dashed var(--line);border-radius:var(--radius)}
   .empty .big{font-size:46px;margin-bottom:10px}
+  .welcome{text-align:center;padding:30px 20px 22px;border:1px dashed var(--line);border-radius:var(--radius);margin-bottom:18px}
+  .welcome .wicon{font-size:42px;margin-bottom:8px}
+  .welcome .wtitle{font-weight:800;font-size:16px;color:var(--txt)}
+  .welcome .wsub{color:var(--muted);font-size:13px;margin:6px auto 0;max-width:440px}
+  .upcoming-card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);overflow:hidden}
+  .uc-head{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:13px 16px;
+    border-bottom:1px solid var(--line);background:var(--panel2);font-weight:700;font-size:13.5px}
+  .uc-src{flex:0 0 auto;font-size:9.5px;text-transform:uppercase;letter-spacing:1px;color:var(--muted);
+    border:1px solid var(--line);padding:2px 8px;border-radius:999px}
+  .up-when{align-self:center;flex:0 0 auto;color:var(--muted);font-size:11.5px;white-space:nowrap}
   .spinner{width:34px;height:34px;border-radius:50%;border:3px solid var(--line);
     border-top-color:var(--accent);animation:spin 1s linear infinite;margin-bottom:14px}
   @keyframes spin{to{transform:rotate(360deg)}}
@@ -253,10 +263,10 @@
     <div class="summary" id="summary"></div>
     <div id="curate"></div>
     <div id="out">
-      <div class="empty">
-        <div class="big">🗺️</div>
-        <div><b>Set your trip on the left and hit “Build my itineraries.”</b></div>
-        <div style="margin-top:6px;max-width:380px">SporTrips cross-references real game schedules against real drive times and only chains games you can actually make.</div>
+      <div class="welcome">
+        <div class="wicon">🗺️</div>
+        <div class="wtitle">Set your trip on the left and hit “Build my itineraries.”</div>
+        <div class="wsub">SporTrips chains games you can actually drive between — set your dates, daily driving limit, and sports to get full routes.</div>
       </div>
     </div>
   </main>
@@ -836,6 +846,53 @@ function renderExcluded(){
     '<div class="excl-wrap">'+chips+'</div></div>';
 }
 
+/* ---------- 9d. Empty-state teaser: next few upcoming games ---------- */
+function welcomeHTML(){
+  return '<div class="welcome"><div class="wicon">🗺️</div>'+
+    '<div class="wtitle">Set your trip on the left and hit “Build my itineraries.”</div>'+
+    '<div class="wsub">SporTrips chains games you can actually drive between — set your dates, daily driving limit, and sports to get full routes.</div></div>';
+}
+function upcomingRow(g, now){
+  const d=g.date, hr=d.getHours(), ap=hr>=12?"pm":"am", h12=hr%12===0?12:hr%12;
+  const gap=daysBetween(now,d), when = gap<=0?"today" : gap===1?"tomorrow" : "in "+gap+" days";
+  return '<div class="game"><div class="gdate"><div class="d">'+d.getDate()+'</div><div class="m">'+MONTHS[d.getMonth()]+'</div></div>'+
+    '<div class="gmain"><div class="gteams"><span class="stag" style="background:'+leagueColor(g.league).trim()+'">'+g.league+'</span>'+g.awayTeam+' @ '+g.homeTeam+'</div>'+
+    '<div class="gsub">'+g.venue+' · '+g.city+' · '+DOW[d.getDay()]+' '+h12+ap+'</div></div>'+
+    '<div class="up-when">'+when+'</div></div>';
+}
+function renderUpcoming(games, source, now){
+  const srcTag = source==="live"
+    ? '<span class="uc-src">live</span>'
+    : '<span class="uc-src" title="Couldn’t reach live data — showing sample schedule">sample</span>';
+  const rows = games.length
+    ? games.map(g=>upcomingRow(g, now)).join("")
+    : '<div style="padding:20px;text-align:center;color:var(--muted)">No upcoming games found right now — set a trip on the left to search a wider window.</div>';
+  $("#out").innerHTML = welcomeHTML() +
+    '<div class="upcoming-card"><div class="uc-head">'+
+      '<span>📅 In the meantime — upcoming games you might want to know about</span>'+srcTag+
+    '</div><div class="uc-list">'+rows+'</div></div>';
+}
+async function loadUpcoming(){
+  const now=new Date();
+  $("#out").innerHTML = welcomeHTML() +
+    '<div class="upcoming-card"><div class="uc-head"><span>📅 Finding upcoming games…</span></div>'+
+    '<div class="uc-list"><div class="spinner" style="margin:24px auto"></div></div></div>';
+  const leagues = Object.keys(LEAGUE_INFO);
+  let games=[], source="sample";
+  try{
+    const to=new Date(now); to.setDate(to.getDate()+7);
+    const live = await fetchLiveSchedule(now, to, leagues);
+    if(live.length){ games=live; source="live"; }
+  }catch(e){}
+  if(!games.length){
+    const to=new Date(now); to.setDate(to.getDate()+21);
+    games = generateSchedule(new Date(now), to, leagues); source="sample";
+  }
+  const upcoming = games.filter(g=>g.date>=now).sort((a,b)=>a.date-b.date).slice(0,4);
+  if(!document.querySelector(".welcome")) return;   // user already started a build — don't clobber it
+  renderUpcoming(upcoming, source, now);
+}
+
 /* ---------- 10. Orchestration ---------- */
 let lastGeo=null; // set by geolocation button
 
@@ -936,6 +993,7 @@ function initUI(){
   });
 
   $("#go").addEventListener("click",run);
+  loadUpcoming();   // populate the empty state with the next few games
 }
 initUI();
 </script>
