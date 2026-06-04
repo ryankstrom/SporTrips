@@ -72,7 +72,7 @@
   button.go:disabled{opacity:.6;cursor:wait}
   .hint{color:var(--muted);font-size:11.5px;margin-top:10px;line-height:1.45}
 
-  .results{min-height:200px}
+  .results{min-height:200px;min-width:0}
   .banner{border-radius:12px;padding:11px 14px;margin-bottom:14px;font-size:13px;border:1px solid var(--line);
     display:flex;gap:9px;align-items:flex-start;line-height:1.45}
   .banner.ok{background:#102a17;border-color:#1c5b30;color:#a6f0bf}
@@ -129,11 +129,12 @@
   .chev{color:var(--muted);transition:.2s;font-size:13px}
   .trip.open .chev{transform:rotate(90deg)}
 
-  .trip-body{display:none;grid-template-columns:1fr 320px;gap:0}
-  .trip.open .trip-body{display:grid}
-  @media(max-width:680px){.trip-body{grid-template-columns:1fr}}
+  /* flex-wrap so the timeline + map sit side by side when there's room,
+     and cleanly STACK (instead of overflowing) when the card gets narrow */
+  .trip-body{display:none;flex-wrap:wrap}
+  .trip.open .trip-body{display:flex}
 
-  .timeline{padding:8px 0}
+  .timeline{flex:1 1 300px;min-width:0;padding:8px 0}
   .leg{display:flex;gap:12px;padding:6px 18px;color:var(--muted);font-size:12.5px;align-items:center}
   .leg .ic{width:22px;text-align:center}
   .drive-bar{height:1px;flex:1;background:repeating-linear-gradient(90deg,var(--line) 0 6px,transparent 6px 12px)}
@@ -154,7 +155,7 @@
   .stag{display:inline-block;font-size:9.5px;font-weight:800;padding:2px 7px;border-radius:6px;
     color:#fff;margin-right:7px;vertical-align:middle;letter-spacing:.5px}
 
-  .mapwrap{border-left:1px solid var(--line);padding:14px;background:#0e141d;position:relative}
+  .mapwrap{flex:1 1 340px;min-width:0;padding:14px;background:#0e141d;position:relative}
   .leafmap{width:100%;height:270px;border-radius:10px;border:1px solid var(--line);background:#0b1119;z-index:0}
   .map-max-btn{position:absolute;top:22px;right:22px;z-index:5;width:30px;height:30px;border-radius:8px;
     border:1px solid var(--line);background:rgba(22,27,34,.92);color:var(--txt);cursor:pointer;
@@ -162,9 +163,10 @@
   .map-max-btn:hover{border-color:var(--accent2);color:#fff}
   .map-max-btn svg{width:15px;height:15px}
   .map-max-btn .ic-min{display:none}
-  /* maximized: map takes the full results column, timeline drops below it */
-  .trip.maximized .trip-body{grid-template-columns:1fr}
-  .trip.maximized .mapwrap{order:-1;border-left:0;border-bottom:1px solid var(--line)}
+  /* maximized: map takes the full width on top, timeline drops below it */
+  .trip.maximized .trip-body{flex-direction:column}
+  .trip.maximized .timeline,.trip.maximized .mapwrap{flex-basis:auto;width:100%}
+  .trip.maximized .mapwrap{order:-1;border-bottom:1px solid var(--line)}
   .trip.maximized .leafmap{height:min(70vh,560px)}
   .trip.maximized .map-max-btn .ic-max{display:none}
   .trip.maximized .map-max-btn .ic-min{display:flex}
