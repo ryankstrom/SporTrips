@@ -121,13 +121,30 @@
     color:#fff;margin-right:7px;vertical-align:middle;letter-spacing:.5px}
 
   .mapwrap{border-left:1px solid var(--line);padding:14px;background:#0e141d}
-  svg.map{width:100%;height:auto;display:block;background:#0b1119;border-radius:10px}
+  .leafmap{width:100%;height:270px;border-radius:10px;border:1px solid var(--line);background:#0b1119;z-index:0}
+  .leaflet-container{font:inherit}
+  .leaflet-popup-content-wrapper,.leaflet-popup-tip{background:#1c2330;color:var(--txt);box-shadow:0 4px 16px rgba(0,0,0,.4)}
+  .leaflet-popup-content{margin:9px 12px;font-size:12.5px;line-height:1.4}
+  .leaflet-popup-content b{color:#fff}
+  .leaflet-popup-content-wrapper a.leaflet-popup-close-button{color:var(--muted)}
+  .pin{width:24px;height:24px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    color:#fff;font-weight:800;font-size:11px;border:2px solid #0b1119;box-shadow:0 1px 4px rgba(0,0,0,.5)}
+  .pin.start{background:#ff5a3c;border-color:#fff}
   .maplabel{color:var(--muted);font-size:11px;margin-top:8px;text-align:center}
+  .route-legend{list-style:none;margin:11px 0 0;padding:0;display:grid;grid-template-columns:1fr 1fr;gap:5px 10px;font-size:11.5px;color:var(--txt)}
+  .route-legend li{display:flex;align-items:center;gap:6px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .route-legend .ln{flex:0 0 auto;width:17px;height:17px;border-radius:50%;color:#fff;font-weight:800;
+    font-size:9.5px;display:inline-flex;align-items:center;justify-content:center}
+  .route-legend em{color:var(--muted);font-style:normal;font-size:10.5px;margin-left:auto;padding-left:6px}
 
   footer{max-width:1180px;margin:0 auto;padding:0 22px 40px;color:var(--muted);font-size:12px;line-height:1.6}
   code{background:#1c2330;padding:1px 6px;border-radius:5px;font-size:12px}
   a{color:var(--accent2)}
 </style>
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css"
+      integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"
+      integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
 </head>
 <body>
 <header>
@@ -147,7 +164,7 @@
 
     <label>Starting from (any address or city)</label>
     <div class="addr-row">
-      <input type="text" id="addr" placeholder="e.g. 1060 W Addison St, Chicago" autocomplete="off">
+      <input type="text" id="addr" placeholder="e.g. 9 Wolfond Crescent, Guelph, ON" autocomplete="off">
       <button class="locate" id="locate" title="Use my current location">📍</button>
     </div>
     <div class="startHint" id="startHint"></div>
@@ -192,8 +209,8 @@
 </div>
 
 <footer>
-  <b>Drive math:</b> times come from venue coordinates (great-circle distance × a 1.25 road-detour factor at ~62&nbsp;mph); a trip only links two games if you can cover the distance within your rest days at your daily driving limit.
-  <br><b>Live data:</b> schedules from ESPN’s public scoreboard API, matched to a built-in table of all 124 MLB/NBA/NHL/NFL venue coordinates. Your start address is geocoded by OpenStreetMap (Nominatim). If live data can’t be reached, SporTrips falls back to a season-aware sample schedule and tells you so.
+  <b>Drive math:</b> distances come from venue coordinates (great-circle distance × a 1.25 road-detour factor at ~100&nbsp;km/h); a trip only links two games if you can cover the distance within your rest days at your daily driving limit. All distances are in kilometres.
+  <br><b>Maps &amp; data:</b> interactive maps by <a href="https://leafletjs.com">Leaflet</a> with <a href="https://carto.com/attributions">CARTO</a> / <a href="https://openstreetmap.org/copyright">OpenStreetMap</a> tiles. Schedules from ESPN’s public scoreboard API, matched to a built-in table of all 124 MLB/NBA/NHL/NFL venue coordinates. Start address geocoded by Photon / OpenStreetMap. If live data can’t be reached, SporTrips falls back to a season-aware sample schedule and tells you so.
 </footer>
 
 <script>
@@ -349,17 +366,17 @@ const LEAGUE_INFO = {
 const VENUE_BY_LEAGUE = {};
 VENUES.forEach(v=>{ (VENUE_BY_LEAGUE[v.league]=VENUE_BY_LEAGUE[v.league]||[]).push(v); });
 
-/* ---------- 2. Geometry / drive math ---------- */
-const ROAD_FACTOR = 1.25, AVG_MPH = 62;
-function haversineMiles(a,b){
-  const R=3958.8, toR=Math.PI/180;
+/* ---------- 2. Geometry / drive math (metric) ---------- */
+const ROAD_FACTOR = 1.25, AVG_KPH = 100;   // 1.25 road-detour factor, ~100 km/h highway average
+function haversineKm(a,b){
+  const R=6371, toR=Math.PI/180;
   const dLat=(b.lat-a.lat)*toR, dLon=(b.lon-a.lon)*toR;
   const la1=a.lat*toR, la2=b.lat*toR;
   const h=Math.sin(dLat/2)**2 + Math.cos(la1)*Math.cos(la2)*Math.sin(dLon/2)**2;
   return 2*R*Math.asin(Math.sqrt(h));
 }
-const driveMiles=(a,b)=>haversineMiles(a,b)*ROAD_FACTOR;
-const driveHours=(a,b)=>driveMiles(a,b)/AVG_MPH;
+const driveKm=(a,b)=>haversineKm(a,b)*ROAD_FACTOR;
+const driveHours=(a,b)=>driveKm(a,b)/AVG_KPH;
 
 /* ---------- 3. Helpers ---------- */
 const dateKey=d=>d.toISOString().slice(0,10);
@@ -499,9 +516,9 @@ function buildTrip(start, fromDate, toDate, maxHrs, capGames, pool, strategy, fi
   return games;
 }
 function tripStats(start, games){
-  let miles=0, prev={lat:start.lat,lon:start.lon}; const legs=[];
-  games.forEach(g=>{ const m=driveMiles(prev,g); miles+=m; legs.push({miles:m,hours:driveHours(prev,g)}); prev={lat:g.lat,lon:g.lon}; });
-  return {miles:Math.round(miles), hours:Math.round(miles/AVG_MPH), legs,
+  let km=0, prev={lat:start.lat,lon:start.lon}; const legs=[];
+  games.forEach(g=>{ const d=driveKm(prev,g); km+=d; legs.push({km:d,hours:driveHours(prev,g)}); prev={lat:g.lat,lon:g.lon}; });
+  return {km:Math.round(km), hours:Math.round(km/AVG_KPH), legs,
     sports:[...new Set(games.map(g=>g.league))], games:games.length};
 }
 
@@ -530,10 +547,10 @@ function planFromPool(pool, opts){
   strategies.forEach(s=>{
     const group=uniq.filter(c=>c.strategy.key===s.key); if(!group.length) return;
     group.sort((a,b)=>{
-      if(s.key==="games")   return b.stats.games-a.stats.games || a.stats.miles-b.stats.miles;
-      if(s.key==="drive")   return (a.stats.miles/a.stats.games)-(b.stats.miles/b.stats.games);
+      if(s.key==="games")   return b.stats.games-a.stats.games || a.stats.km-b.stats.km;
+      if(s.key==="drive")   return (a.stats.km/a.stats.games)-(b.stats.km/b.stats.games);
       if(s.key==="variety") return b.stats.sports.length-a.stats.sports.length || b.stats.games-a.stats.games;
-      return b.stats.games-a.stats.games || a.stats.miles-b.stats.miles;
+      return b.stats.games-a.stats.games || a.stats.km-b.stats.km;
     });
     picked.push(group[0]);
   });
@@ -578,31 +595,64 @@ const DOW=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
 const leagueColor=lg=>getComputedStyle(document.documentElement).getPropertyValue(LEAGUE_INFO[lg].color);
 const fmtHrs=h=> h<1 ? Math.round(h*60)+" min" : (Math.round(h*10)/10)+" hr";
 
-function renderMap(start, games){
-  const W=290,H=210,PADX=18,PADY=16, LON0=-125,LON1=-66,LAT0=24,LAT1=52;
-  const px=p=>PADX+((p.lon-LON0)/(LON1-LON0))*(W-2*PADX);
-  const py=p=>PADY+(1-(p.lat-LAT0)/(LAT1-LAT0))*(H-2*PADY);
-  const pts=[start,...games]; let path="",dots="";
-  pts.forEach((p,i)=>{
-    const x=px(p).toFixed(1), y=py(p).toFixed(1);
-    path+=(i===0?"M":"L")+x+" "+y+" ";
-    if(i===0){ dots+=`<circle cx="${x}" cy="${y}" r="5" fill="#ff5a3c" stroke="#fff" stroke-width="1.5"/>`; }
-    else{ const c=leagueColor(games[i-1].league).trim();
-      dots+=`<circle cx="${x}" cy="${y}" r="4" fill="${c}" stroke="#0b1119" stroke-width="1.2"/>
-             <text x="${x}" y="${(+y-7)}" fill="#9aa7b4" font-size="8" text-anchor="middle">${i}</text>`; }
+/* ---------- 9b. Leaflet maps (real tiles, North America) ---------- */
+let TRIP_DATA = [];   // [{start, games}] indexed by trip card
+const MAP_TILE = "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png";
+const MAP_ATTR = '&copy; <a href="https://openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
+
+function buildLeaflet(idx){
+  const el = document.getElementById("leafmap-"+idx);
+  if(!el || el._built || typeof L === "undefined") return;
+  el._built = true;
+  const { start, games } = TRIP_DATA[idx];
+  const map = L.map(el, {scrollWheelZoom:false, attributionControl:true});
+  L.tileLayer(MAP_TILE, {attribution:MAP_ATTR, subdomains:"abcd", maxZoom:18}).addTo(map);
+
+  const latlngs = [[start.lat, start.lon], ...games.map(g=>[g.lat, g.lon])];
+  L.polyline(latlngs, {color:"#0b1119", weight:6, opacity:.55}).addTo(map);          // casing
+  L.polyline(latlngs, {color:"#36c5f0", weight:3, opacity:.95}).addTo(map);          // route
+
+  const startName = start.label ? start.label.split(",").slice(0,2).join(",") : "your start";
+  L.marker([start.lat, start.lon], {icon:L.divIcon({className:"", iconSize:[24,24], iconAnchor:[12,12],
+      html:'<div class="pin start">S</div>'})}).addTo(map).bindPopup("<b>Start</b><br>"+startName);
+
+  games.forEach((g,i)=>{
+    const c = leagueColor(g.league).trim(), d = g.date;
+    const hr=d.getHours(), ap=hr>=12?"pm":"am", h12=hr%12===0?12:hr%12;
+    L.marker([g.lat, g.lon], {icon:L.divIcon({className:"", iconSize:[24,24], iconAnchor:[12,12],
+        html:'<div class="pin" style="background:'+c+'">'+(i+1)+'</div>'})}).addTo(map)
+      .bindPopup("<b>"+g.awayTeam+" @ "+g.homeTeam+"</b><br>"+g.venue+"<br>"+g.city+
+                 "<br>"+DOW[d.getDay()]+" "+MONTHS[d.getMonth()]+" "+d.getDate()+", "+h12+ap);
   });
-  return `<div class="mapwrap"><svg class="map" viewBox="0 0 ${W} ${H}">
-      <rect x="0" y="0" width="${W}" height="${H}" rx="10" fill="#0b1119"/>
-      <path d="${path}" fill="none" stroke="#36c5f0" stroke-width="1.6" stroke-dasharray="4 3" opacity=".7"/>
-      ${dots}</svg><div class="maplabel">🟠 Start · numbered stops in order</div></div>`;
+
+  setTimeout(()=>{ map.invalidateSize(); map.fitBounds(latlngs, {padding:[34,34], maxZoom:9}); }, 60);
 }
+
+function toggleTrip(headEl, idx){
+  const card = headEl.parentElement;
+  const opening = !card.classList.contains("open");
+  card.classList.toggle("open");
+  if(opening) buildLeaflet(idx);
+}
+
+function renderMapSlot(idx, games){
+  let legend = '<li><span class="ln" style="background:#ff5a3c">S</span>Start</li>';
+  games.forEach((g,i)=>{
+    const c = leagueColor(g.league).trim(), d = g.date;
+    legend += '<li><span class="ln" style="background:'+c+'">'+(i+1)+'</span>'+
+              g.city.split(",")[0]+' <em>'+MONTHS[d.getMonth()]+' '+d.getDate()+'</em></li>';
+  });
+  return '<div class="mapwrap"><div class="leafmap" id="leafmap-'+idx+'"></div>'+
+         '<ol class="route-legend">'+legend+'</ol></div>';
+}
+
 function renderTrip(trip, start, idx){
   const s=trip.stats;
   const sportTags=s.sports.map(lg=>`<span class="stag" style="background:${leagueColor(lg).trim()}">${lg}</span>`).join("");
   let timeline=`<div class="timeline">`;
   trip.games.forEach((g,i)=>{
     const leg=s.legs[i], d=g.date;
-    timeline+=`<div class="leg"><span class="ic">🚗</span><span>${Math.round(leg.miles)} mi · ${fmtHrs(leg.hours)} drive</span><span class="drive-bar"></span></div>`;
+    timeline+=`<div class="leg"><span class="ic">🚗</span><span>${Math.round(leg.km).toLocaleString()} km · ${fmtHrs(leg.hours)} drive</span><span class="drive-bar"></span></div>`;
     const hr=d.getHours(), ap=hr>=12?"pm":"am", h12=hr%12===0?12:hr%12;
     timeline+=`<div class="game">
       <div class="gdate"><div class="d">${d.getDate()}</div><div class="m">${MONTHS[d.getMonth()]}</div></div>
@@ -613,15 +663,15 @@ function renderTrip(trip, start, idx){
   });
   timeline+=`</div>`;
   return `<div class="trip card ${idx===0?'open':''}">
-    <div class="trip-head" onclick="this.parentElement.classList.toggle('open')">
+    <div class="trip-head" onclick="toggleTrip(this, ${idx})">
       <span class="badge">${trip.strategy.label}</span>
       <h3>${trip.strategy.sub}</h3>
       <div class="trip-meta">
-        <span><b>${s.games}</b> games</span><span><b>${s.miles.toLocaleString()}</b> mi</span>
+        <span><b>${s.games}</b> games</span><span><b>${s.km.toLocaleString()}</b> km</span>
         <span><b>${s.hours}</b> hrs driving</span><span>${sportTags}</span>
       </div><span class="chev">▶</span>
     </div>
-    <div class="trip-body">${timeline}${renderMap(start, trip.games)}</div></div>`;
+    <div class="trip-body">${timeline}${renderMapSlot(idx, trip.games)}</div></div>`;
 }
 function setBanner(kind, html){
   $("#banner").innerHTML = html ? `<div class="banner ${kind}">${html}</div>` : "";
@@ -642,7 +692,9 @@ function renderResult(result){
     <div class="stat"><div class="n">${best.stats.games}</div><div class="l">Most games in one trip</div></div>
     <div class="stat"><div class="n">${result.pool.toLocaleString()}</div><div class="l">Games considered</div></div>
     <div class="stat"><div class="n">${allSports.size}</div><div class="l">Sports in play</div></div>`;
+  TRIP_DATA=result.trips.map(t=>({start:result.start, games:t.games}));
   out.innerHTML=result.trips.map((t,i)=>renderTrip(t,result.start,i)).join("");
+  buildLeaflet(0);   // first card is open by default
 }
 
 /* ---------- 10. Orchestration ---------- */
@@ -724,7 +776,7 @@ function initUI(){
     lgWrap.appendChild(div);
   });
 
-  $("#addr").value="Wrigley Field, Chicago, IL";
+  $("#addr").value="9 Wolfond Crescent, Guelph, ON";
   const start=new Date(2026,5,12), end=new Date(2026,5,24);
   $("#from").value=dateKey(start); $("#to").value=dateKey(end);
 
