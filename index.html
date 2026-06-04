@@ -84,6 +84,22 @@
   .stat .n{font-size:21px;font-weight:800}
   .stat .l{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px}
 
+  .curate-tip{color:var(--muted);font-size:12.5px;margin:0 2px 12px;display:flex;align-items:center;gap:7px;flex-wrap:wrap}
+  .mini{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:6px;
+    border:1px solid var(--line);font-size:11px;font-weight:800}
+  .mini.on{color:var(--good);border-color:#1c5b30}
+  .curate-card{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-bottom:16px}
+  .curate-head{display:flex;align-items:center;justify-content:space-between;font-weight:700;font-size:13px;margin-bottom:9px}
+  .curate-head .clear{background:none;border:0;color:var(--accent2);cursor:pointer;font-size:12.5px;font-weight:700}
+  .curate-head .clear:hover{text-decoration:underline}
+  .excl-wrap{display:flex;flex-wrap:wrap;gap:8px}
+  .excl-chip{display:inline-flex;align-items:center;gap:7px;background:var(--panel2);border:1px solid var(--line);
+    border-radius:999px;padding:5px 6px 5px 10px;font-size:12px;color:var(--muted)}
+  .excl-chip em{font-style:normal;color:var(--muted);opacity:.8}
+  .excl-chip button{width:22px;height:22px;border-radius:50%;border:0;cursor:pointer;background:#283042;
+    color:var(--good);font-size:12px;font-weight:800}
+  .excl-chip button:hover{background:#1c5b30;color:#fff}
+
   .empty{display:grid;place-items:center;text-align:center;color:var(--muted);
     padding:60px 20px;border:1px dashed var(--line);border-radius:var(--radius)}
   .empty .big{font-size:46px;margin-bottom:10px}
@@ -118,6 +134,12 @@
   .gmain{flex:1}
   .gteams{font-weight:700;font-size:14.5px}
   .gsub{color:var(--muted);font-size:12.5px;margin-top:2px}
+  .gtoggle{flex:0 0 auto;align-self:center;width:27px;height:27px;border-radius:8px;cursor:pointer;
+    border:1px solid #1c5b30;background:#102a17;color:var(--good);font-size:14px;font-weight:800;
+    line-height:1;transition:.15s;position:relative}
+  .gtoggle::after{content:"";position:absolute;inset:0}
+  .gtoggle:hover{border-color:var(--bad);background:#2a1414;color:var(--bad)}
+  .gtoggle:hover::before{content:"✕";position:absolute;inset:0;display:flex;align-items:center;justify-content:center;background:#2a1414;border-radius:7px}
   .stag{display:inline-block;font-size:9.5px;font-weight:800;padding:2px 7px;border-radius:6px;
     color:#fff;margin-right:7px;vertical-align:middle;letter-spacing:.5px}
 
@@ -217,6 +239,7 @@
   <main class="results">
     <div id="banner"></div>
     <div class="summary" id="summary"></div>
+    <div id="curate"></div>
     <div id="out">
       <div class="empty">
         <div class="big">🗺️</div>
@@ -697,7 +720,9 @@ function renderTrip(trip, start, idx){
       <div class="gmain">
         <div class="gteams"><span class="stag" style="background:${leagueColor(g.league).trim()}">${g.league}</span>${g.awayTeam} @ ${g.homeTeam}</div>
         <div class="gsub">${g.venue} · ${g.city} · ${DOW[d.getDay()]} ${h12}${ap}</div>
-      </div></div>`;
+      </div>
+      <button class="gtoggle on" title="Drop this game and re-plan" onclick="event.stopPropagation();toggleGame('${g.id}')">✓</button>
+    </div>`;
   });
   timeline+=`</div>`;
   return `<div class="trip card ${idx===0?'open':''}">
@@ -731,8 +756,42 @@ function renderResult(result){
     <div class="stat"><div class="n">${result.pool.toLocaleString()}</div><div class="l">Games considered</div></div>
     <div class="stat"><div class="n">${allSports.size}</div><div class="l">Sports in play</div></div>`;
   TRIP_DATA=result.trips.map(t=>({start:result.start, games:t.games}));
-  out.innerHTML=result.trips.map((t,i)=>renderTrip(t,result.start,i)).join("");
+  out.innerHTML=`<div class="curate-tip">Tip: tap <span class="mini on">✓</span> on any game to drop it — the itineraries re-plan instantly around your picks.</div>`
+    + result.trips.map((t,i)=>renderTrip(t,result.start,i)).join("");
   buildLeaflet(0);   // first card is open by default
+}
+
+/* ---------- game include/exclude curation ---------- */
+let LAST_PLAN = null;            // {pool, start, opts} cached for instant re-plan
+const EXCLUDED = new Set();      // game ids the user has dropped
+
+function toggleGame(id){
+  if(EXCLUDED.has(id)) EXCLUDED.delete(id); else EXCLUDED.add(id);
+  replan();
+}
+function clearExcluded(){ EXCLUDED.clear(); replan(); }
+
+function replan(){
+  if(!LAST_PLAN) return;
+  const active = LAST_PLAN.pool.filter(g=>!EXCLUDED.has(g.id));
+  const result = planFromPool(active, {start:LAST_PLAN.start, ...LAST_PLAN.opts});
+  renderResult(result);
+  renderExcluded();
+}
+
+function renderExcluded(){
+  const el=$("#curate");
+  if(!LAST_PLAN || !EXCLUDED.size){ el.innerHTML=""; return; }
+  const games=LAST_PLAN.pool.filter(g=>EXCLUDED.has(g.id)).sort((a,b)=>a.date-b.date);
+  const chips=games.map(g=>{
+    const d=g.date;
+    return '<span class="excl-chip"><span class="stag" style="background:'+leagueColor(g.league).trim()+'">'+g.league+'</span>'+
+      g.awayTeam+' @ '+g.homeTeam+' <em>'+MONTHS[d.getMonth()]+' '+d.getDate()+'</em>'+
+      '<button title="Add back" onclick="toggleGame(\''+g.id+'\')">↩</button></span>';
+  }).join("");
+  el.innerHTML='<div class="curate-card"><div class="curate-head"><span>🚫 Dropped games ('+games.length+')</span>'+
+    '<button class="clear" onclick="clearExcluded()">Add all back</button></div>'+
+    '<div class="excl-wrap">'+chips+'</div></div>';
 }
 
 /* ---------- 10. Orchestration ---------- */
@@ -758,6 +817,7 @@ async function run(){
   const btn=$("#go"); btn.disabled=true; btn.textContent="Building…";
   setBanner("", "");
   $("#summary").innerHTML="";
+  LAST_PLAN=null; EXCLUDED.clear(); $("#curate").innerHTML="";   // fresh build clears any drops
 
   // 1) resolve starting point
   let start;
@@ -791,13 +851,13 @@ async function run(){
     pool=generateSchedule(from, to, leagues); source="sample";
   }
 
-  // 3) plan + render
-  const result=planFromPool(pool, {start, from:fromVal, to:toVal, maxHrs:+$("#drive").value, cap:+$("#cap").value, leagues});
+  // 3) cache the schedule, then plan + render (re-plans reuse this cache, no re-fetch)
+  LAST_PLAN={pool, start, opts:{from:fromVal, to:toVal, maxHrs:+$("#drive").value, cap:+$("#cap").value, leagues}};
   const startName=(start.label||"your location").split(",").slice(0,2).join(",");
   if(source==="live")     setBanner("ok",   `<span>✅</span><div><b>Live schedules from ESPN.</b> ${pool.length} games found · starting from ${startName}.</div>`);
   else if(source==="fallback") setBanner("warn", `<span>⚠️</span><div><b>Couldn’t reach live ESPN data</b> (network or CORS). Showing a season-aware <b>sample</b> schedule instead. Your drive math and routing are still real.</div>`);
   else                    setBanner("info", `<span>ℹ️</span><div>Live mode is off — using the offline <b>sample</b> schedule. Flip on “Use live schedules” for real games.</div>`);
-  renderResult(result);
+  replan();
 
   btn.disabled=false; btn.textContent="⚡ Build my itineraries";
   window.scrollTo({top:120, behavior:"smooth"});
