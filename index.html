@@ -143,8 +143,20 @@
   .stag{display:inline-block;font-size:9.5px;font-weight:800;padding:2px 7px;border-radius:6px;
     color:#fff;margin-right:7px;vertical-align:middle;letter-spacing:.5px}
 
-  .mapwrap{border-left:1px solid var(--line);padding:14px;background:#0e141d}
+  .mapwrap{border-left:1px solid var(--line);padding:14px;background:#0e141d;position:relative}
   .leafmap{width:100%;height:270px;border-radius:10px;border:1px solid var(--line);background:#0b1119;z-index:0}
+  .map-max-btn{position:absolute;top:22px;right:22px;z-index:5;width:30px;height:30px;border-radius:8px;
+    border:1px solid var(--line);background:rgba(22,27,34,.92);color:var(--txt);cursor:pointer;
+    display:flex;align-items:center;justify-content:center;backdrop-filter:blur(2px);transition:.15s}
+  .map-max-btn:hover{border-color:var(--accent2);color:#fff}
+  .map-max-btn svg{width:15px;height:15px}
+  .map-max-btn .ic-min{display:none}
+  /* maximized: map takes the full results column, timeline drops below it */
+  .trip.maximized .trip-body{grid-template-columns:1fr}
+  .trip.maximized .mapwrap{order:-1;border-left:0;border-bottom:1px solid var(--line)}
+  .trip.maximized .leafmap{height:min(70vh,560px)}
+  .trip.maximized .map-max-btn .ic-max{display:none}
+  .trip.maximized .map-max-btn .ic-min{display:flex}
   .leaflet-container{font:inherit}
   .leaflet-popup-content-wrapper,.leaflet-popup-tip{background:#1c2330;color:var(--txt);box-shadow:0 4px 16px rgba(0,0,0,.4)}
   .leaflet-popup-content{margin:9px 12px;font-size:12.5px;line-height:1.4}
@@ -638,7 +650,9 @@ const leagueColor=lg=>getComputedStyle(document.documentElement).getPropertyValu
 const fmtHrs=h=> h<1 ? Math.round(h*60)+" min" : (Math.round(h*10)/10)+" hr";
 
 /* ---------- 9b. Leaflet maps (real tiles, North America) ---------- */
-let TRIP_DATA = [];   // [{start, games}] indexed by trip card
+let TRIP_DATA = [];        // [{start, games, label}] indexed by trip card
+const TRIP_MAPS = {};      // idx -> Leaflet map instance
+const MAXIMIZED = new Set(); // strategy labels whose map is maximized (sticky across re-plans)
 const MAP_TILE = "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png";
 const MAP_ATTR = '&copy; <a href="https://openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>';
 
@@ -648,6 +662,7 @@ function buildLeaflet(idx){
   el._built = true;
   const { start, games } = TRIP_DATA[idx];
   const map = L.map(el, {scrollWheelZoom:false, attributionControl:true});
+  TRIP_MAPS[idx] = map;
   L.tileLayer(MAP_TILE, {attribution:MAP_ATTR, subdomains:"abcd", maxZoom:18}).addTo(map);
 
   const latlngs = [[start.lat, start.lon], ...games.map(g=>[g.lat, g.lon])];
@@ -677,14 +692,38 @@ function toggleTrip(headEl, idx){
   if(opening) buildLeaflet(idx);
 }
 
-function renderMapSlot(idx, games){
+function fitTripMap(idx){
+  const m = TRIP_MAPS[idx], t = TRIP_DATA[idx];
+  if(!m || !t) return;
+  const latlngs = [[t.start.lat, t.start.lon], ...t.games.map(g=>[g.lat, g.lon])];
+  m.invalidateSize();
+  m.fitBounds(latlngs, {padding:[34,34], maxZoom:9});
+}
+
+function toggleMaxMap(idx){
+  const el = document.getElementById("leafmap-"+idx);
+  if(!el) return;
+  const card = el.closest(".trip");
+  const btn = el.parentElement.querySelector(".map-max-btn");
+  const max = card.classList.toggle("maximized");
+  if(btn) btn.title = max ? "Restore map size" : "Expand map";
+  const t = TRIP_DATA[idx];                // remember by strategy label so it survives re-plans
+  if(t){ if(max) MAXIMIZED.add(t.label); else MAXIMIZED.delete(t.label); }
+  buildLeaflet(idx);                       // ensure it exists
+  setTimeout(()=>fitTripMap(idx), 80);     // let CSS resize land, then re-fit
+}
+
+function renderMapSlot(idx, games, maxed){
   let legend = '<li><span class="ln" style="background:#ff5a3c">S</span>Start</li>';
   games.forEach((g,i)=>{
     const c = leagueColor(g.league).trim(), d = g.date;
     legend += '<li><span class="ln" style="background:'+c+'">'+(i+1)+'</span>'+
               g.city.split(",")[0]+' <em>'+MONTHS[d.getMonth()]+' '+d.getDate()+'</em></li>';
   });
-  return '<div class="mapwrap"><div class="leafmap" id="leafmap-'+idx+'"></div>'+
+  const maxBtn = '<button class="map-max-btn" title="'+(maxed?'Restore map size':'Expand map')+'" onclick="toggleMaxMap('+idx+')">'+
+    '<svg class="ic-max" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 8V3h5 M16 3h5v5 M21 16v5h-5 M8 21H3v-5"/></svg>'+
+    '<svg class="ic-min" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M8 3v5H3 M21 8h-5V3 M16 21v-5h5 M3 16h5v5"/></svg></button>';
+  return '<div class="mapwrap"><div class="leafmap" id="leafmap-'+idx+'"></div>'+maxBtn+
          '<ol class="route-legend">'+legend+'</ol>'+
          '<button class="gmaps-btn" onclick="openInGoogle('+idx+')">'+
            '<svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path fill="currentColor" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></svg>'+
@@ -725,7 +764,9 @@ function renderTrip(trip, start, idx){
     </div>`;
   });
   timeline+=`</div>`;
-  return `<div class="trip card ${idx===0?'open':''}">
+  const maxed = MAXIMIZED.has(trip.strategy.label);
+  const open = (idx===0 || maxed);
+  return `<div class="trip card ${open?'open':''} ${maxed?'maximized':''}">
     <div class="trip-head" onclick="toggleTrip(this, ${idx})">
       <span class="badge">${trip.strategy.label}</span>
       <h3>${trip.strategy.sub}</h3>
@@ -734,7 +775,7 @@ function renderTrip(trip, start, idx){
         <span><b>${s.hours}</b> hrs driving</span><span>${sportTags}</span>
       </div><span class="chev">▶</span>
     </div>
-    <div class="trip-body">${timeline}${renderMapSlot(idx, trip.games)}</div></div>`;
+    <div class="trip-body">${timeline}${renderMapSlot(idx, trip.games, maxed)}</div></div>`;
 }
 function setBanner(kind, html){
   $("#banner").innerHTML = html ? `<div class="banner ${kind}">${html}</div>` : "";
@@ -755,10 +796,11 @@ function renderResult(result){
     <div class="stat"><div class="n">${best.stats.games}</div><div class="l">Most games in one trip</div></div>
     <div class="stat"><div class="n">${result.pool.toLocaleString()}</div><div class="l">Games considered</div></div>
     <div class="stat"><div class="n">${allSports.size}</div><div class="l">Sports in play</div></div>`;
-  TRIP_DATA=result.trips.map(t=>({start:result.start, games:t.games}));
+  TRIP_DATA=result.trips.map(t=>({start:result.start, games:t.games, label:t.strategy.label}));
   out.innerHTML=`<div class="curate-tip">Tip: tap <span class="mini on">✓</span> on any game to drop it — the itineraries re-plan instantly around your picks.</div>`
     + result.trips.map((t,i)=>renderTrip(t,result.start,i)).join("");
   buildLeaflet(0);   // first card is open by default
+  result.trips.forEach((t,i)=>{ if(i!==0 && MAXIMIZED.has(t.strategy.label)) buildLeaflet(i); });  // sticky-maximized maps
 }
 
 /* ---------- game include/exclude curation ---------- */
@@ -817,7 +859,7 @@ async function run(){
   const btn=$("#go"); btn.disabled=true; btn.textContent="Building…";
   setBanner("", "");
   $("#summary").innerHTML="";
-  LAST_PLAN=null; EXCLUDED.clear(); $("#curate").innerHTML="";   // fresh build clears any drops
+  LAST_PLAN=null; EXCLUDED.clear(); MAXIMIZED.clear(); $("#curate").innerHTML="";   // fresh build clears drops + maximized maps
 
   // 1) resolve starting point
   let start;
