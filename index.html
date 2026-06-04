@@ -136,6 +136,12 @@
   .route-legend .ln{flex:0 0 auto;width:17px;height:17px;border-radius:50%;color:#fff;font-weight:800;
     font-size:9.5px;display:inline-flex;align-items:center;justify-content:center}
   .route-legend em{color:var(--muted);font-style:normal;font-size:10.5px;margin-left:auto;padding-left:6px}
+  .gmaps-btn{margin-top:12px;width:100%;display:flex;align-items:center;justify-content:center;gap:8px;
+    padding:10px;border:1px solid var(--line);border-radius:10px;cursor:pointer;
+    background:var(--panel2);color:var(--txt);font-weight:700;font-size:13px;transition:.15s}
+  .gmaps-btn:hover{border-color:var(--accent2);background:#1a2740;color:#fff}
+  .gmaps-btn svg{color:var(--accent)}
+  .gmaps-btn:active{transform:translateY(1px)}
 
   footer{max-width:1180px;margin:0 auto;padding:0 22px 40px;color:var(--muted);font-size:12px;line-height:1.6}
   code{background:#1c2330;padding:1px 6px;border-radius:5px;font-size:12px}
@@ -643,7 +649,26 @@ function renderMapSlot(idx, games){
               g.city.split(",")[0]+' <em>'+MONTHS[d.getMonth()]+' '+d.getDate()+'</em></li>';
   });
   return '<div class="mapwrap"><div class="leafmap" id="leafmap-'+idx+'"></div>'+
-         '<ol class="route-legend">'+legend+'</ol></div>';
+         '<ol class="route-legend">'+legend+'</ol>'+
+         '<button class="gmaps-btn" onclick="openInGoogle('+idx+')">'+
+           '<svg viewBox="0 0 24 24" width="15" height="15" aria-hidden="true"><path fill="currentColor" d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5A2.5 2.5 0 1 1 12 6.5a2.5 2.5 0 0 1 0 5z"/></svg>'+
+           'Open route in Google Maps</button></div>';
+}
+
+/* ---------- 9c. Google Maps multi-stop deep link ---------- */
+function gmapsUrl(start, games){
+  const pt=p=>p.lat.toFixed(5)+","+p.lon.toFixed(5);
+  const last=games[games.length-1];
+  let u="https://www.google.com/maps/dir/?api=1&travelmode=driving"+
+        "&origin="+encodeURIComponent(pt(start))+
+        "&destination="+encodeURIComponent(pt(last));
+  const mids=games.slice(0,-1).map(pt);
+  if(mids.length) u+="&waypoints="+encodeURIComponent(mids.join("|"));
+  return u;
+}
+function openInGoogle(idx){
+  const t=TRIP_DATA[idx]; if(!t || !t.games.length) return;
+  window.open(gmapsUrl(t.start, t.games), "_blank", "noopener");
 }
 
 function renderTrip(trip, start, idx){
