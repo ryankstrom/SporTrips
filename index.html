@@ -30,7 +30,8 @@
   .tagline{color:var(--muted);font-size:13.5px;margin-top:2px}
   .wrap{max-width:1180px;margin:0 auto;padding:0 22px 60px;
     display:grid;grid-template-columns:340px 1fr;gap:22px;align-items:start}
-  @media(max-width:880px){.wrap{grid-template-columns:1fr}}
+  @media(max-width:880px){.wrap{grid-template-columns:1fr}
+    .controls{position:static;top:auto}}
 
   .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
   .controls{padding:18px;position:sticky;top:16px}
@@ -959,7 +960,14 @@ async function run(){
   replan();
 
   btn.disabled=false; btn.textContent="⚡ Build my itineraries";
-  window.scrollTo({top:120, behavior:"smooth"});
+  scrollToResults();
+}
+
+// scroll the results section into view (handles stacked mobile layout, not a fixed offset)
+function scrollToResults(){
+  const el=document.querySelector(".results"); if(!el) return;
+  const y=el.getBoundingClientRect().top + window.scrollY - 12;
+  window.scrollTo({top:Math.max(0,y), behavior:"smooth"});
 }
 
 /* ---------- 11. Wire up UI ---------- */
