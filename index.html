@@ -1,0 +1,751 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SporTrips — Sports Road Trip Machine</title>
+<style>
+  :root{
+    --bg:#0d1117; --panel:#161b22; --panel2:#1c2330; --line:#2b3340;
+    --txt:#e6edf3; --muted:#9aa7b4; --accent:#ff5a3c; --accent2:#36c5f0;
+    --good:#3fb950; --warn:#d29922; --bad:#f85149;
+    --mlb:#1f6feb; --nba:#db6d28; --nhl:#a371f7; --nfl:#3fb950;
+    --radius:14px; --shadow:0 8px 30px rgba(0,0,0,.35);
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  body{
+    background:radial-gradient(1200px 600px at 80% -10%, #1b2a4a 0%, transparent 60%), var(--bg);
+    color:var(--txt);
+    font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    min-height:100vh;
+  }
+  header{padding:26px 22px 14px; max-width:1180px; margin:0 auto;}
+  .brand{display:flex;align-items:center;gap:12px}
+  .logo{width:42px;height:42px;border-radius:11px;
+    background:linear-gradient(135deg,var(--accent),#ffb13c);
+    display:grid;place-items:center;font-size:22px;box-shadow:var(--shadow);}
+  h1{margin:0;font-size:24px;letter-spacing:.3px}
+  .tagline{color:var(--muted);font-size:13.5px;margin-top:2px}
+  .wrap{max-width:1180px;margin:0 auto;padding:0 22px 60px;
+    display:grid;grid-template-columns:340px 1fr;gap:22px;align-items:start}
+  @media(max-width:880px){.wrap{grid-template-columns:1fr}}
+
+  .card{background:var(--panel);border:1px solid var(--line);border-radius:var(--radius);box-shadow:var(--shadow)}
+  .controls{padding:18px;position:sticky;top:16px}
+  .controls h2{font-size:13px;text-transform:uppercase;letter-spacing:1.4px;color:var(--muted);margin:0 0 14px}
+  label{display:block;font-size:12.5px;color:var(--muted);margin:14px 0 5px;font-weight:600}
+  select,input[type=date],input[type=text]{
+    width:100%;background:var(--panel2);color:var(--txt);border:1px solid var(--line);
+    border-radius:10px;padding:10px 11px;font-size:14px;outline:none}
+  select:focus,input:focus{border-color:var(--accent2)}
+  .row{display:flex;gap:10px}
+  .row>*{flex:1}
+  .addr-row{display:flex;gap:8px;align-items:center}
+  .addr-row input{flex:1}
+  .locate{flex:0 0 auto;background:var(--panel2);border:1px solid var(--line);color:var(--txt);
+    border-radius:10px;padding:10px 11px;cursor:pointer;font-size:16px;line-height:1}
+  .locate:hover{border-color:var(--accent2)}
+  .startHint{font-size:11.5px;color:var(--accent2);margin-top:5px;min-height:14px}
+
+  .leagues{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:6px}
+  .lg{display:flex;align-items:center;gap:8px;background:var(--panel2);
+    border:1px solid var(--line);border-radius:10px;padding:9px 10px;cursor:pointer;
+    font-weight:600;font-size:13px;user-select:none;transition:.15s}
+  .lg input{accent-color:var(--accent);width:16px;height:16px;margin:0}
+  .lg .dot{width:9px;height:9px;border-radius:50%}
+  .lg.on{border-color:var(--accent2);background:#1a2740}
+
+  .range-val{display:flex;justify-content:space-between;color:var(--txt);font-weight:700;font-size:13px}
+  input[type=range]{width:100%;accent-color:var(--accent)}
+
+  .srcline{display:flex;align-items:center;gap:9px;margin-top:16px;background:var(--panel2);
+    border:1px solid var(--line);border-radius:10px;padding:10px 11px;cursor:pointer;font-weight:600;font-size:13px}
+  .srcline input{accent-color:var(--good);width:16px;height:16px;margin:0}
+
+  button.go{margin-top:18px;width:100%;padding:13px;border:0;border-radius:11px;cursor:pointer;
+    background:linear-gradient(135deg,var(--accent),#ff8a3c);color:#fff;font-weight:800;
+    font-size:15px;letter-spacing:.4px;box-shadow:0 6px 18px rgba(255,90,60,.35)}
+  button.go:active{transform:translateY(1px)}
+  button.go:disabled{opacity:.6;cursor:wait}
+  .hint{color:var(--muted);font-size:11.5px;margin-top:10px;line-height:1.45}
+
+  .results{min-height:200px}
+  .banner{border-radius:12px;padding:11px 14px;margin-bottom:14px;font-size:13px;border:1px solid var(--line);
+    display:flex;gap:9px;align-items:flex-start;line-height:1.45}
+  .banner.ok{background:#102a17;border-color:#1c5b30;color:#a6f0bf}
+  .banner.warn{background:#2a2410;border-color:#5b4a1c;color:#f0dea6}
+  .banner.info{background:#10202a;border-color:#1c455b;color:#a6dbf0}
+  .banner b{color:#fff}
+
+  .summary{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:16px}
+  .stat{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:10px 14px;flex:1;min-width:120px}
+  .stat .n{font-size:21px;font-weight:800}
+  .stat .l{font-size:11px;color:var(--muted);text-transform:uppercase;letter-spacing:.8px}
+
+  .empty{display:grid;place-items:center;text-align:center;color:var(--muted);
+    padding:60px 20px;border:1px dashed var(--line);border-radius:var(--radius)}
+  .empty .big{font-size:46px;margin-bottom:10px}
+  .spinner{width:34px;height:34px;border-radius:50%;border:3px solid var(--line);
+    border-top-color:var(--accent);animation:spin 1s linear infinite;margin-bottom:14px}
+  @keyframes spin{to{transform:rotate(360deg)}}
+
+  .trip{margin-bottom:20px;overflow:hidden}
+  .trip-head{display:flex;align-items:center;gap:14px;padding:15px 18px;
+    border-bottom:1px solid var(--line);background:var(--panel2);cursor:pointer}
+  .badge{font-size:10.5px;font-weight:800;text-transform:uppercase;letter-spacing:1px;
+    padding:4px 9px;border-radius:999px;background:#283042;color:var(--accent2)}
+  .trip-head h3{margin:0;font-size:16px;flex:1}
+  .trip-meta{display:flex;gap:16px;color:var(--muted);font-size:12.5px;flex-wrap:wrap}
+  .trip-meta b{color:var(--txt)}
+  .chev{color:var(--muted);transition:.2s;font-size:13px}
+  .trip.open .chev{transform:rotate(90deg)}
+
+  .trip-body{display:none;grid-template-columns:1fr 320px;gap:0}
+  .trip.open .trip-body{display:grid}
+  @media(max-width:680px){.trip-body{grid-template-columns:1fr}}
+
+  .timeline{padding:8px 0}
+  .leg{display:flex;gap:12px;padding:6px 18px;color:var(--muted);font-size:12.5px;align-items:center}
+  .leg .ic{width:22px;text-align:center}
+  .drive-bar{height:1px;flex:1;background:repeating-linear-gradient(90deg,var(--line) 0 6px,transparent 6px 12px)}
+  .game{display:flex;gap:13px;padding:12px 18px;align-items:flex-start;position:relative}
+  .game:not(:last-child){border-bottom:1px solid #1d2530}
+  .gdate{width:58px;flex-shrink:0;text-align:center}
+  .gdate .d{font-size:18px;font-weight:800;line-height:1}
+  .gdate .m{font-size:10.5px;color:var(--muted);text-transform:uppercase}
+  .gmain{flex:1}
+  .gteams{font-weight:700;font-size:14.5px}
+  .gsub{color:var(--muted);font-size:12.5px;margin-top:2px}
+  .stag{display:inline-block;font-size:9.5px;font-weight:800;padding:2px 7px;border-radius:6px;
+    color:#fff;margin-right:7px;vertical-align:middle;letter-spacing:.5px}
+
+  .mapwrap{border-left:1px solid var(--line);padding:14px;background:#0e141d}
+  svg.map{width:100%;height:auto;display:block;background:#0b1119;border-radius:10px}
+  .maplabel{color:var(--muted);font-size:11px;margin-top:8px;text-align:center}
+
+  footer{max-width:1180px;margin:0 auto;padding:0 22px 40px;color:var(--muted);font-size:12px;line-height:1.6}
+  code{background:#1c2330;padding:1px 6px;border-radius:5px;font-size:12px}
+  a{color:var(--accent2)}
+</style>
+</head>
+<body>
+<header>
+  <div class="brand">
+    <div class="logo">🏟️</div>
+    <div>
+      <h1>SporTrips</h1>
+      <div class="tagline">The sports road-trip machine — live schedules, real drive times, start from anywhere.</div>
+    </div>
+  </div>
+</header>
+
+<div class="wrap">
+  <!-- ───────── CONTROLS ───────── -->
+  <aside class="card controls">
+    <h2>Plan your trip</h2>
+
+    <label>Starting from (any address or city)</label>
+    <div class="addr-row">
+      <input type="text" id="addr" placeholder="e.g. 1060 W Addison St, Chicago" autocomplete="off">
+      <button class="locate" id="locate" title="Use my current location">📍</button>
+    </div>
+    <div class="startHint" id="startHint"></div>
+
+    <div class="row">
+      <div><label>Leave on</label><input type="date" id="from"></div>
+      <div><label>Back by</label><input type="date" id="to"></div>
+    </div>
+
+    <label>Max driving per day</label>
+    <div class="range-val"><span>Short hops</span><span id="driveVal">6 hrs</span><span>Marathon</span></div>
+    <input type="range" id="drive" min="2" max="12" step="1" value="6">
+
+    <label>Sports / leagues</label>
+    <div class="leagues" id="leagues"></div>
+
+    <label>How many games max?</label>
+    <div class="range-val"><span></span><span id="capVal">8 games</span><span></span></div>
+    <input type="range" id="cap" min="2" max="14" step="1" value="8">
+
+    <div class="srcline" id="liveLine">
+      <input type="checkbox" id="live" checked>
+      <span>⚡ Use live schedules (ESPN)</span>
+    </div>
+
+    <button class="go" id="go">⚡ Build my itineraries</button>
+    <div class="hint">Live mode pulls real game schedules from ESPN. First build over a wide date range can take a few seconds. Turn it off to use the offline sample schedule.</div>
+  </aside>
+
+  <!-- ───────── RESULTS ───────── -->
+  <main class="results">
+    <div id="banner"></div>
+    <div class="summary" id="summary"></div>
+    <div id="out">
+      <div class="empty">
+        <div class="big">🗺️</div>
+        <div><b>Set your trip on the left and hit “Build my itineraries.”</b></div>
+        <div style="margin-top:6px;max-width:380px">SporTrips cross-references real game schedules against real drive times and only chains games you can actually make.</div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<footer>
+  <b>Drive math:</b> times come from venue coordinates (great-circle distance × a 1.25 road-detour factor at ~62&nbsp;mph); a trip only links two games if you can cover the distance within your rest days at your daily driving limit.
+  <br><b>Live data:</b> schedules from ESPN’s public scoreboard API, matched to a built-in table of all 124 MLB/NBA/NHL/NFL venue coordinates. Your start address is geocoded by OpenStreetMap (Nominatim). If live data can’t be reached, SporTrips falls back to a season-aware sample schedule and tells you so.
+</footer>
+
+<script>
+/* ============================================================
+   SporTrips — sports road-trip itinerary engine
+   Live schedules (ESPN) + address geocoding (Nominatim).
+   Pure HTML/CSS/JS, no dependencies, no API keys.
+   ============================================================ */
+
+/* ---------- 1. VENUES — all 124 teams, real coordinates ---------- */
+const VENUES = [
+  // ===== MLB (30) =====
+  {team:"Red Sox",league:"MLB",venue:"Fenway Park",city:"Boston, MA",lat:42.346,lon:-71.097},
+  {team:"Yankees",league:"MLB",venue:"Yankee Stadium",city:"New York, NY",lat:40.829,lon:-73.926},
+  {team:"Mets",league:"MLB",venue:"Citi Field",city:"New York, NY",lat:40.757,lon:-73.846},
+  {team:"Phillies",league:"MLB",venue:"Citizens Bank Park",city:"Philadelphia, PA",lat:39.906,lon:-75.166},
+  {team:"Orioles",league:"MLB",venue:"Camden Yards",city:"Baltimore, MD",lat:39.284,lon:-76.622},
+  {team:"Nationals",league:"MLB",venue:"Nationals Park",city:"Washington, DC",lat:38.873,lon:-77.007},
+  {team:"Pirates",league:"MLB",venue:"PNC Park",city:"Pittsburgh, PA",lat:40.447,lon:-80.006},
+  {team:"Blue Jays",league:"MLB",venue:"Rogers Centre",city:"Toronto, ON",lat:43.641,lon:-79.389},
+  {team:"Guardians",league:"MLB",venue:"Progressive Field",city:"Cleveland, OH",lat:41.496,lon:-81.685},
+  {team:"Tigers",league:"MLB",venue:"Comerica Park",city:"Detroit, MI",lat:42.339,lon:-83.048},
+  {team:"Reds",league:"MLB",venue:"Great American Ball Park",city:"Cincinnati, OH",lat:39.097,lon:-84.507},
+  {team:"Cubs",league:"MLB",venue:"Wrigley Field",city:"Chicago, IL",lat:41.948,lon:-87.655},
+  {team:"White Sox",league:"MLB",venue:"Rate Field",city:"Chicago, IL",lat:41.830,lon:-87.634},
+  {team:"Brewers",league:"MLB",venue:"American Family Field",city:"Milwaukee, WI",lat:43.028,lon:-87.971},
+  {team:"Twins",league:"MLB",venue:"Target Field",city:"Minneapolis, MN",lat:44.982,lon:-93.278},
+  {team:"Cardinals",league:"MLB",venue:"Busch Stadium",city:"St. Louis, MO",lat:38.622,lon:-90.193},
+  {team:"Royals",league:"MLB",venue:"Kauffman Stadium",city:"Kansas City, MO",lat:39.051,lon:-94.480},
+  {team:"Braves",league:"MLB",venue:"Truist Park",city:"Atlanta, GA",lat:33.890,lon:-84.468},
+  {team:"Rays",league:"MLB",venue:"Tropicana Field",city:"St. Petersburg, FL",lat:27.768,lon:-82.653},
+  {team:"Marlins",league:"MLB",venue:"loanDepot park",city:"Miami, FL",lat:25.778,lon:-80.220},
+  {team:"Rangers",league:"MLB",venue:"Globe Life Field",city:"Arlington, TX",lat:32.747,lon:-97.083},
+  {team:"Astros",league:"MLB",venue:"Daikin Park",city:"Houston, TX",lat:29.757,lon:-95.355},
+  {team:"Rockies",league:"MLB",venue:"Coors Field",city:"Denver, CO",lat:39.756,lon:-104.994},
+  {team:"Diamondbacks",league:"MLB",venue:"Chase Field",city:"Phoenix, AZ",lat:33.445,lon:-112.067},
+  {team:"Padres",league:"MLB",venue:"Petco Park",city:"San Diego, CA",lat:32.707,lon:-117.157},
+  {team:"Dodgers",league:"MLB",venue:"Dodger Stadium",city:"Los Angeles, CA",lat:34.074,lon:-118.240},
+  {team:"Angels",league:"MLB",venue:"Angel Stadium",city:"Anaheim, CA",lat:33.800,lon:-117.883},
+  {team:"Giants",league:"MLB",venue:"Oracle Park",city:"San Francisco, CA",lat:37.779,lon:-122.389},
+  {team:"Athletics",league:"MLB",venue:"Sutter Health Park",city:"Sacramento, CA",lat:38.580,lon:-121.513},
+  {team:"Mariners",league:"MLB",venue:"T-Mobile Park",city:"Seattle, WA",lat:47.591,lon:-122.332},
+
+  // ===== NBA (30) =====
+  {team:"Hawks",league:"NBA",venue:"State Farm Arena",city:"Atlanta, GA",lat:33.757,lon:-84.396},
+  {team:"Celtics",league:"NBA",venue:"TD Garden",city:"Boston, MA",lat:42.366,lon:-71.062},
+  {team:"Nets",league:"NBA",venue:"Barclays Center",city:"Brooklyn, NY",lat:40.683,lon:-73.975},
+  {team:"Hornets",league:"NBA",venue:"Spectrum Center",city:"Charlotte, NC",lat:35.225,lon:-80.839},
+  {team:"Bulls",league:"NBA",venue:"United Center",city:"Chicago, IL",lat:41.880,lon:-87.674},
+  {team:"Cavaliers",league:"NBA",venue:"Rocket Arena",city:"Cleveland, OH",lat:41.496,lon:-81.688},
+  {team:"Mavericks",league:"NBA",venue:"American Airlines Center",city:"Dallas, TX",lat:32.790,lon:-96.810},
+  {team:"Nuggets",league:"NBA",venue:"Ball Arena",city:"Denver, CO",lat:39.749,lon:-105.008},
+  {team:"Pistons",league:"NBA",venue:"Little Caesars Arena",city:"Detroit, MI",lat:42.341,lon:-83.055},
+  {team:"Warriors",league:"NBA",venue:"Chase Center",city:"San Francisco, CA",lat:37.768,lon:-122.388},
+  {team:"Rockets",league:"NBA",venue:"Toyota Center",city:"Houston, TX",lat:29.751,lon:-95.362},
+  {team:"Pacers",league:"NBA",venue:"Gainbridge Fieldhouse",city:"Indianapolis, IN",lat:39.764,lon:-86.155},
+  {team:"Clippers",league:"NBA",venue:"Intuit Dome",city:"Inglewood, CA",lat:33.945,lon:-118.342},
+  {team:"Lakers",league:"NBA",venue:"Crypto.com Arena",city:"Los Angeles, CA",lat:34.043,lon:-118.267},
+  {team:"Grizzlies",league:"NBA",venue:"FedExForum",city:"Memphis, TN",lat:35.138,lon:-90.051},
+  {team:"Heat",league:"NBA",venue:"Kaseya Center",city:"Miami, FL",lat:25.781,lon:-80.187},
+  {team:"Bucks",league:"NBA",venue:"Fiserv Forum",city:"Milwaukee, WI",lat:43.045,lon:-87.917},
+  {team:"Timberwolves",league:"NBA",venue:"Target Center",city:"Minneapolis, MN",lat:44.979,lon:-93.276},
+  {team:"Pelicans",league:"NBA",venue:"Smoothie King Center",city:"New Orleans, LA",lat:29.949,lon:-90.082},
+  {team:"Knicks",league:"NBA",venue:"Madison Square Garden",city:"New York, NY",lat:40.751,lon:-73.993},
+  {team:"Thunder",league:"NBA",venue:"Paycom Center",city:"Oklahoma City, OK",lat:35.463,lon:-97.515},
+  {team:"Magic",league:"NBA",venue:"Kia Center",city:"Orlando, FL",lat:28.539,lon:-81.384},
+  {team:"76ers",league:"NBA",venue:"Wells Fargo Center",city:"Philadelphia, PA",lat:39.901,lon:-75.172},
+  {team:"Suns",league:"NBA",venue:"PHX Arena",city:"Phoenix, AZ",lat:33.446,lon:-112.071},
+  {team:"Trail Blazers",league:"NBA",venue:"Moda Center",city:"Portland, OR",lat:45.532,lon:-122.667},
+  {team:"Kings",league:"NBA",venue:"Golden 1 Center",city:"Sacramento, CA",lat:38.580,lon:-121.500},
+  {team:"Spurs",league:"NBA",venue:"Frost Bank Center",city:"San Antonio, TX",lat:29.427,lon:-98.437},
+  {team:"Raptors",league:"NBA",venue:"Scotiabank Arena",city:"Toronto, ON",lat:43.643,lon:-79.379},
+  {team:"Jazz",league:"NBA",venue:"Delta Center",city:"Salt Lake City, UT",lat:40.768,lon:-111.901},
+  {team:"Wizards",league:"NBA",venue:"Capital One Arena",city:"Washington, DC",lat:38.898,lon:-77.021},
+
+  // ===== NHL (32) =====
+  {team:"Ducks",league:"NHL",venue:"Honda Center",city:"Anaheim, CA",lat:33.808,lon:-117.877},
+  {team:"Bruins",league:"NHL",venue:"TD Garden",city:"Boston, MA",lat:42.366,lon:-71.062},
+  {team:"Sabres",league:"NHL",venue:"KeyBank Center",city:"Buffalo, NY",lat:42.875,lon:-78.876},
+  {team:"Flames",league:"NHL",venue:"Scotiabank Saddledome",city:"Calgary, AB",lat:51.038,lon:-114.052},
+  {team:"Hurricanes",league:"NHL",venue:"Lenovo Center",city:"Raleigh, NC",lat:35.803,lon:-78.722},
+  {team:"Blackhawks",league:"NHL",venue:"United Center",city:"Chicago, IL",lat:41.880,lon:-87.674},
+  {team:"Avalanche",league:"NHL",venue:"Ball Arena",city:"Denver, CO",lat:39.749,lon:-105.008},
+  {team:"Blue Jackets",league:"NHL",venue:"Nationwide Arena",city:"Columbus, OH",lat:39.969,lon:-83.006},
+  {team:"Stars",league:"NHL",venue:"American Airlines Center",city:"Dallas, TX",lat:32.790,lon:-96.810},
+  {team:"Red Wings",league:"NHL",venue:"Little Caesars Arena",city:"Detroit, MI",lat:42.341,lon:-83.055},
+  {team:"Oilers",league:"NHL",venue:"Rogers Place",city:"Edmonton, AB",lat:53.547,lon:-113.498},
+  {team:"Panthers",league:"NHL",venue:"Amerant Bank Arena",city:"Sunrise, FL",lat:26.158,lon:-80.326},
+  {team:"Kings",league:"NHL",venue:"Crypto.com Arena",city:"Los Angeles, CA",lat:34.043,lon:-118.267},
+  {team:"Wild",league:"NHL",venue:"Grand Casino Arena",city:"St. Paul, MN",lat:44.945,lon:-93.101},
+  {team:"Canadiens",league:"NHL",venue:"Bell Centre",city:"Montreal, QC",lat:45.496,lon:-73.569},
+  {team:"Predators",league:"NHL",venue:"Bridgestone Arena",city:"Nashville, TN",lat:36.159,lon:-86.778},
+  {team:"Devils",league:"NHL",venue:"Prudential Center",city:"Newark, NJ",lat:40.734,lon:-74.171},
+  {team:"Islanders",league:"NHL",venue:"UBS Arena",city:"Elmont, NY",lat:40.711,lon:-73.722},
+  {team:"Rangers",league:"NHL",venue:"Madison Square Garden",city:"New York, NY",lat:40.751,lon:-73.993},
+  {team:"Senators",league:"NHL",venue:"Canadian Tire Centre",city:"Ottawa, ON",lat:45.297,lon:-75.927},
+  {team:"Flyers",league:"NHL",venue:"Wells Fargo Center",city:"Philadelphia, PA",lat:39.901,lon:-75.172},
+  {team:"Penguins",league:"NHL",venue:"PPG Paints Arena",city:"Pittsburgh, PA",lat:40.439,lon:-79.989},
+  {team:"Sharks",league:"NHL",venue:"SAP Center",city:"San Jose, CA",lat:37.333,lon:-121.901},
+  {team:"Kraken",league:"NHL",venue:"Climate Pledge Arena",city:"Seattle, WA",lat:47.622,lon:-122.354},
+  {team:"Blues",league:"NHL",venue:"Enterprise Center",city:"St. Louis, MO",lat:38.627,lon:-90.203},
+  {team:"Lightning",league:"NHL",venue:"Benchmark Arena",city:"Tampa, FL",lat:27.943,lon:-82.452},
+  {team:"Maple Leafs",league:"NHL",venue:"Scotiabank Arena",city:"Toronto, ON",lat:43.643,lon:-79.379},
+  {team:"Mammoth",league:"NHL",venue:"Delta Center",city:"Salt Lake City, UT",lat:40.768,lon:-111.901},
+  {team:"Canucks",league:"NHL",venue:"Rogers Arena",city:"Vancouver, BC",lat:49.278,lon:-123.109},
+  {team:"Golden Knights",league:"NHL",venue:"T-Mobile Arena",city:"Las Vegas, NV",lat:36.103,lon:-115.178},
+  {team:"Capitals",league:"NHL",venue:"Capital One Arena",city:"Washington, DC",lat:38.898,lon:-77.021},
+  {team:"Jets",league:"NHL",venue:"Canada Life Centre",city:"Winnipeg, MB",lat:49.893,lon:-97.144},
+
+  // ===== NFL (32) =====
+  {team:"Cardinals",league:"NFL",venue:"State Farm Stadium",city:"Glendale, AZ",lat:33.528,lon:-112.263},
+  {team:"Falcons",league:"NFL",venue:"Mercedes-Benz Stadium",city:"Atlanta, GA",lat:33.755,lon:-84.401},
+  {team:"Ravens",league:"NFL",venue:"M&T Bank Stadium",city:"Baltimore, MD",lat:39.278,lon:-76.623},
+  {team:"Bills",league:"NFL",venue:"Highmark Stadium",city:"Orchard Park, NY",lat:42.774,lon:-78.787},
+  {team:"Panthers",league:"NFL",venue:"Bank of America Stadium",city:"Charlotte, NC",lat:35.226,lon:-80.853},
+  {team:"Bears",league:"NFL",venue:"Soldier Field",city:"Chicago, IL",lat:41.862,lon:-87.617},
+  {team:"Bengals",league:"NFL",venue:"Paycor Stadium",city:"Cincinnati, OH",lat:39.095,lon:-84.516},
+  {team:"Browns",league:"NFL",venue:"Huntington Bank Field",city:"Cleveland, OH",lat:41.506,lon:-81.700},
+  {team:"Cowboys",league:"NFL",venue:"AT&T Stadium",city:"Arlington, TX",lat:32.747,lon:-97.093},
+  {team:"Broncos",league:"NFL",venue:"Empower Field at Mile High",city:"Denver, CO",lat:39.744,lon:-105.020},
+  {team:"Lions",league:"NFL",venue:"Ford Field",city:"Detroit, MI",lat:42.340,lon:-83.046},
+  {team:"Packers",league:"NFL",venue:"Lambeau Field",city:"Green Bay, WI",lat:44.501,lon:-88.062},
+  {team:"Texans",league:"NFL",venue:"NRG Stadium",city:"Houston, TX",lat:29.685,lon:-95.411},
+  {team:"Colts",league:"NFL",venue:"Lucas Oil Stadium",city:"Indianapolis, IN",lat:39.760,lon:-86.164},
+  {team:"Jaguars",league:"NFL",venue:"EverBank Stadium",city:"Jacksonville, FL",lat:30.324,lon:-81.637},
+  {team:"Chiefs",league:"NFL",venue:"Arrowhead Stadium",city:"Kansas City, MO",lat:39.049,lon:-94.484},
+  {team:"Raiders",league:"NFL",venue:"Allegiant Stadium",city:"Las Vegas, NV",lat:36.091,lon:-115.184},
+  {team:"Chargers",league:"NFL",venue:"SoFi Stadium",city:"Inglewood, CA",lat:33.953,lon:-118.339},
+  {team:"Rams",league:"NFL",venue:"SoFi Stadium",city:"Inglewood, CA",lat:33.953,lon:-118.339},
+  {team:"Dolphins",league:"NFL",venue:"Hard Rock Stadium",city:"Miami Gardens, FL",lat:25.958,lon:-80.239},
+  {team:"Vikings",league:"NFL",venue:"U.S. Bank Stadium",city:"Minneapolis, MN",lat:44.974,lon:-93.258},
+  {team:"Patriots",league:"NFL",venue:"Gillette Stadium",city:"Foxborough, MA",lat:42.091,lon:-71.264},
+  {team:"Saints",league:"NFL",venue:"Caesars Superdome",city:"New Orleans, LA",lat:29.951,lon:-90.081},
+  {team:"Giants",league:"NFL",venue:"MetLife Stadium",city:"East Rutherford, NJ",lat:40.814,lon:-74.074},
+  {team:"Jets",league:"NFL",venue:"MetLife Stadium",city:"East Rutherford, NJ",lat:40.814,lon:-74.074},
+  {team:"Eagles",league:"NFL",venue:"Lincoln Financial Field",city:"Philadelphia, PA",lat:39.901,lon:-75.168},
+  {team:"Steelers",league:"NFL",venue:"Acrisure Stadium",city:"Pittsburgh, PA",lat:40.447,lon:-80.016},
+  {team:"49ers",league:"NFL",venue:"Levi's Stadium",city:"Santa Clara, CA",lat:37.403,lon:-121.970},
+  {team:"Seahawks",league:"NFL",venue:"Lumen Field",city:"Seattle, WA",lat:47.595,lon:-122.332},
+  {team:"Buccaneers",league:"NFL",venue:"Raymond James Stadium",city:"Tampa, FL",lat:27.976,lon:-82.503},
+  {team:"Titans",league:"NFL",venue:"Nissan Stadium",city:"Nashville, TN",lat:36.166,lon:-86.771},
+  {team:"Commanders",league:"NFL",venue:"Northwest Stadium",city:"Landover, MD",lat:38.908,lon:-76.864},
+];
+
+const LEAGUE_INFO = {
+  MLB:{name:"⚾ Baseball (MLB)", color:"--mlb", season:[2,9], path:"baseball/mlb"},
+  NBA:{name:"🏀 Basketball (NBA)", color:"--nba", season:[9,5], path:"basketball/nba"},
+  NHL:{name:"🏒 Hockey (NHL)", color:"--nhl", season:[9,5], path:"hockey/nhl"},
+  NFL:{name:"🏈 Football (NFL)", color:"--nfl", season:[8,1], path:"football/nfl"},
+};
+
+// per-league lookup index for matching live data to coordinates
+const VENUE_BY_LEAGUE = {};
+VENUES.forEach(v=>{ (VENUE_BY_LEAGUE[v.league]=VENUE_BY_LEAGUE[v.league]||[]).push(v); });
+
+/* ---------- 2. Geometry / drive math ---------- */
+const ROAD_FACTOR = 1.25, AVG_MPH = 62;
+function haversineMiles(a,b){
+  const R=3958.8, toR=Math.PI/180;
+  const dLat=(b.lat-a.lat)*toR, dLon=(b.lon-a.lon)*toR;
+  const la1=a.lat*toR, la2=b.lat*toR;
+  const h=Math.sin(dLat/2)**2 + Math.cos(la1)*Math.cos(la2)*Math.sin(dLon/2)**2;
+  return 2*R*Math.asin(Math.sqrt(h));
+}
+const driveMiles=(a,b)=>haversineMiles(a,b)*ROAD_FACTOR;
+const driveHours=(a,b)=>driveMiles(a,b)/AVG_MPH;
+
+/* ---------- 3. Helpers ---------- */
+const dateKey=d=>d.toISOString().slice(0,10);
+const ymd=d=>`${d.getFullYear()}${String(d.getMonth()+1).padStart(2,"0")}${String(d.getDate()).padStart(2,"0")}`;
+const normName=s=>(s||"").toLowerCase().replace(/[^a-z0-9]/g,"");
+function inSeason(league,month){ const [s,e]=LEAGUE_INFO[league].season; return s<=e?(month>=s&&month<=e):(month>=s||month<=e); }
+
+/* ---------- 4a. LIVE schedule (ESPN public API) ---------- */
+async function mapLimit(items, limit, fn){
+  const ret=new Array(items.length); let i=0;
+  const worker=async()=>{ while(i<items.length){ const idx=i++; try{ret[idx]=await fn(items[idx]);}catch(e){ret[idx]=null;} } };
+  await Promise.all(Array.from({length:Math.min(limit,items.length||1)},worker));
+  return ret;
+}
+function resolveHomeVenue(league, team, venue){
+  const idx=VENUE_BY_LEAGUE[league]||[];
+  const cands=[team.name,team.shortDisplayName,team.displayName,team.nickname,(team.location||"")+(team.name||"")]
+    .filter(Boolean).map(normName);
+  let v=idx.find(x=>cands.includes(normName(x.team)));
+  if(!v) v=idx.find(x=>cands.some(c=>c && (c.endsWith(normName(x.team))||normName(x.team).endsWith(c))));
+  if(!v && venue && venue.address && venue.address.city){
+    const c=normName(venue.address.city);
+    v=idx.find(x=>normName(x.city).startsWith(c));
+  }
+  return v||null;
+}
+function parseEvent(league, ev){
+  const comp=ev.competitions && ev.competitions[0];
+  if(!comp) return null;
+  const home=(comp.competitors||[]).find(c=>c.homeAway==="home");
+  const away=(comp.competitors||[]).find(c=>c.homeAway==="away");
+  if(!home||!away) return null;
+  const v=resolveHomeVenue(league, home.team, comp.venue);
+  if(!v) return null;
+  const homeTeam=home.team.shortDisplayName||home.team.displayName||home.team.name;
+  const awayTeam=away.team.shortDisplayName||away.team.displayName||away.team.name;
+  const venueName=(comp.venue&&comp.venue.fullName)||v.venue;
+  const addr=comp.venue&&comp.venue.address;
+  const city=addr?[addr.city,addr.state].filter(Boolean).join(", "):v.city;
+  return {id:`${league}-${ev.id}`, date:new Date(ev.date), league,
+    homeTeam, awayTeam, venue:venueName, city, lat:v.lat, lon:v.lon, team:v.team};
+}
+async function fetchLiveSchedule(fromDate, toDate, leagues, onProgress){
+  const days=[]; for(let t=new Date(fromDate); t<=toDate; t.setDate(t.getDate()+1)) days.push(new Date(t));
+  const tasks=[]; leagues.forEach(lg=>days.forEach(d=>tasks.push({lg,d})));
+  let done=0;
+  const results=await mapLimit(tasks, 8, async ({lg,d})=>{
+    const url=`https://site.api.espn.com/apis/site/v2/sports/${LEAGUE_INFO[lg].path}/scoreboard?dates=${ymd(d)}&limit=100`;
+    const res=await fetch(url);
+    if(!res.ok) throw new Error("http "+res.status);
+    const data=await res.json();
+    done++; onProgress && onProgress(done, tasks.length);
+    return (data.events||[]).map(ev=>parseEvent(lg,ev)).filter(Boolean);
+  });
+  if(tasks.length && results.every(r=>r===null)) throw new Error("live fetch blocked");
+  return results.filter(Boolean).flat().sort((a,b)=>a.date-b.date);
+}
+
+/* ---------- 4b. SAMPLE schedule (offline fallback) ---------- */
+function mulberry32(seed){
+  return function(){ seed|=0; seed=seed+0x6D2B79F5|0;
+    let t=Math.imul(seed^seed>>>15,1|seed); t=t+Math.imul(t^t>>>7,61|t)^t;
+    return ((t^t>>>14)>>>0)/4294967296; };
+}
+function generateSchedule(fromDate, toDate, leagues){
+  const games=[];
+  for(let t=new Date(fromDate); t<=toDate; t.setDate(t.getDate()+1)){
+    const day=new Date(t), dow=day.getDay(), month=day.getMonth();
+    const rng=mulberry32(day.getFullYear()*10000+month*100+day.getDate());
+    leagues.forEach(lg=>{
+      if(!inSeason(lg,month)) return;
+      if(lg==="NFL" && ![0,1,4].includes(dow)) return;
+      if((lg==="NBA"||lg==="NHL") && rng()<0.15) return;
+      const teams=[...VENUE_BY_LEAGUE[lg]];
+      for(let i=teams.length-1;i>0;i--){ const j=Math.floor(rng()*(i+1)); [teams[i],teams[j]]=[teams[j],teams[i]]; }
+      const maxPairs = lg==="NFL" ? Math.floor(teams.length/3) : Math.floor(teams.length/2);
+      for(let i=0;i+1<teams.length && i/2<maxPairs;i+=2){
+        if(rng()<0.18) continue;
+        const home=teams[i], away=teams[i+1];
+        const hours=[13,16,19,19,20][Math.floor(rng()*5)];
+        games.push({id:`${lg}-${dateKey(day)}-${i}`,
+          date:new Date(day.getFullYear(),day.getMonth(),day.getDate(),hours),
+          league:lg, homeTeam:home.team, awayTeam:away.team,
+          venue:home.venue, city:home.city, lat:home.lat, lon:home.lon, team:home.team});
+      }
+    });
+  }
+  return games.sort((a,b)=>a.date-b.date);
+}
+
+/* ---------- 5. Reachability ---------- */
+function daysBetween(d1,d2){
+  const a=new Date(d1.getFullYear(),d1.getMonth(),d1.getDate());
+  const b=new Date(d2.getFullYear(),d2.getMonth(),d2.getDate());
+  return Math.round((b-a)/86400000);
+}
+function reachable(from, fromDate, game, maxHrs){
+  const gap=daysBetween(fromDate, game.date);
+  if(gap<0) return false;
+  const hrs=driveHours(from, game);
+  if(gap===0) return hrs<=3.0;
+  return hrs <= gap*maxHrs;
+}
+
+/* ---------- 6. Itinerary builder (greedy, per strategy) ---------- */
+function buildTrip(start, fromDate, toDate, maxHrs, capGames, pool, strategy, firstGame){
+  const games=[], teamsSeen=new Set(), sportsSeen=new Set();
+  const endDate=new Date(toDate);
+  let loc={lat:start.lat,lon:start.lon}, curDate=new Date(fromDate);
+  const used=new Set();
+  while(games.length<capGames){
+    let cands=pool.filter(g=> !used.has(g.id) && g.date>=curDate && g.date<=endDate && reachable(loc,curDate,g,maxHrs));
+    if(games.length===0 && firstGame) cands=cands.filter(g=>g.id===firstGame.id);
+    if(!cands.length) break;
+    let pick;
+    if(strategy==="games"){
+      cands.sort((a,b)=> a.date-b.date || driveHours(loc,a)-driveHours(loc,b)); pick=cands[0];
+    } else if(strategy==="drive"){
+      cands=cands.filter(g=>daysBetween(curDate,g.date)<=4);
+      if(!cands.length) break;
+      cands.sort((a,b)=> driveHours(loc,a)-driveHours(loc,b)); pick=cands[0];
+    } else if(strategy==="variety"){
+      cands.sort((a,b)=>{
+        const na=(sportsSeen.has(a.league)?1:0)+(teamsSeen.has(a.team)?1:0);
+        const nb=(sportsSeen.has(b.league)?1:0)+(teamsSeen.has(b.team)?1:0);
+        return na-nb || a.date-b.date;
+      }); pick=cands[0];
+    } else {
+      const rested=cands.filter(g=>games.length===0||daysBetween(curDate,g.date)>=1);
+      (rested.length?rested:cands).sort((a,b)=> a.date-b.date || driveHours(loc,a)-driveHours(loc,b));
+      pick=(rested.length?rested:cands)[0];
+    }
+    games.push(pick); used.add(pick.id);
+    teamsSeen.add(pick.team); sportsSeen.add(pick.league);
+    loc={lat:pick.lat,lon:pick.lon}; curDate=pick.date;
+  }
+  return games;
+}
+function tripStats(start, games){
+  let miles=0, prev={lat:start.lat,lon:start.lon}; const legs=[];
+  games.forEach(g=>{ const m=driveMiles(prev,g); miles+=m; legs.push({miles:m,hours:driveHours(prev,g)}); prev={lat:g.lat,lon:g.lon}; });
+  return {miles:Math.round(miles), hours:Math.round(miles/AVG_MPH), legs,
+    sports:[...new Set(games.map(g=>g.league))], games:games.length};
+}
+
+/* ---------- 7. Plan several distinct options from a pool ---------- */
+function planFromPool(pool, opts){
+  if(!pool.length) return {pool:0, trips:[], start:opts.start};
+  const seeds=pool.filter(g=>reachable({lat:opts.start.lat,lon:opts.start.lon}, new Date(opts.from), g, opts.maxHrs)).slice(0,8);
+  const strategies=[
+    {key:"games",   label:"Max Games",       sub:"Cram in every game you can make"},
+    {key:"drive",   label:"Least Driving",   sub:"Tight cluster, minimal windshield time"},
+    {key:"variety", label:"Sampler Platter", sub:"Most different sports & teams"},
+    {key:"relaxed", label:"Scenic Cruise",   sub:"A rest day between games"},
+  ];
+  const candidates=[];
+  strategies.forEach(s=>{
+    candidates.push({strategy:s, games:buildTrip(opts.start,opts.from,opts.to,opts.maxHrs,opts.cap,pool,s.key,null)});
+    seeds.slice(0,3).forEach(fg=>candidates.push({strategy:s, games:buildTrip(opts.start,opts.from,opts.to,opts.maxHrs,opts.cap,pool,s.key,fg)}));
+  });
+  const seen=new Set(), uniq=[];
+  candidates.forEach(c=>{
+    if(c.games.length<2) return;
+    const sig=c.games.map(g=>g.id).join("|"); if(seen.has(sig)) return; seen.add(sig);
+    uniq.push({...c, stats:tripStats(opts.start,c.games)});
+  });
+  const picked=[];
+  strategies.forEach(s=>{
+    const group=uniq.filter(c=>c.strategy.key===s.key); if(!group.length) return;
+    group.sort((a,b)=>{
+      if(s.key==="games")   return b.stats.games-a.stats.games || a.stats.miles-b.stats.miles;
+      if(s.key==="drive")   return (a.stats.miles/a.stats.games)-(b.stats.miles/b.stats.games);
+      if(s.key==="variety") return b.stats.sports.length-a.stats.sports.length || b.stats.games-a.stats.games;
+      return b.stats.games-a.stats.games || a.stats.miles-b.stats.miles;
+    });
+    picked.push(group[0]);
+  });
+  return {pool:pool.length, trips:picked, start:opts.start};
+}
+
+/* ---------- 8. Geocoding (Photon primary, Nominatim fallback) ----------
+   Both are keyless and send Access-Control-Allow-Origin:* for browser fetch. */
+async function geocode(q){
+  const key="sportrips:geo:"+q.toLowerCase().trim();
+  try{ const c=localStorage.getItem(key); if(c) return JSON.parse(c); }catch(e){}
+  let out=null;
+  // Photon (komoot) — built for web, permissive, street-level
+  try{
+    const r=await fetch(`https://photon.komoot.io/api/?q=${encodeURIComponent(q)}&limit=1`);
+    if(r.ok){
+      const d=await r.json(), f=d.features && d.features[0];
+      if(f && f.geometry){
+        const p=f.properties||{}, [lon,lat]=f.geometry.coordinates;
+        const street=p.housenumber&&p.street?`${p.housenumber} ${p.street}`:p.street;
+        const label=[p.name||street, p.city, p.state, p.country].filter(Boolean).join(", ");
+        out={lat, lon, label:label||q};
+      }
+    }
+  }catch(e){}
+  // Nominatim (OpenStreetMap) — fallback
+  if(!out){
+    try{
+      const r=await fetch(`https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(q)}`,{headers:{Accept:"application/json"}});
+      if(r.ok){ const d=await r.json(); if(d.length) out={lat:+d[0].lat, lon:+d[0].lon, label:d[0].display_name}; }
+    }catch(e){}
+  }
+  if(!out) throw new Error("address not found");
+  try{ localStorage.setItem(key, JSON.stringify(out)); }catch(e){}
+  return out;
+}
+
+/* ---------- 9. Rendering ---------- */
+const $=s=>document.querySelector(s);
+const MONTHS=["JAN","FEB","MAR","APR","MAY","JUN","JUL","AUG","SEP","OCT","NOV","DEC"];
+const DOW=["Sun","Mon","Tue","Wed","Thu","Fri","Sat"];
+const leagueColor=lg=>getComputedStyle(document.documentElement).getPropertyValue(LEAGUE_INFO[lg].color);
+const fmtHrs=h=> h<1 ? Math.round(h*60)+" min" : (Math.round(h*10)/10)+" hr";
+
+function renderMap(start, games){
+  const W=290,H=210,PADX=18,PADY=16, LON0=-125,LON1=-66,LAT0=24,LAT1=52;
+  const px=p=>PADX+((p.lon-LON0)/(LON1-LON0))*(W-2*PADX);
+  const py=p=>PADY+(1-(p.lat-LAT0)/(LAT1-LAT0))*(H-2*PADY);
+  const pts=[start,...games]; let path="",dots="";
+  pts.forEach((p,i)=>{
+    const x=px(p).toFixed(1), y=py(p).toFixed(1);
+    path+=(i===0?"M":"L")+x+" "+y+" ";
+    if(i===0){ dots+=`<circle cx="${x}" cy="${y}" r="5" fill="#ff5a3c" stroke="#fff" stroke-width="1.5"/>`; }
+    else{ const c=leagueColor(games[i-1].league).trim();
+      dots+=`<circle cx="${x}" cy="${y}" r="4" fill="${c}" stroke="#0b1119" stroke-width="1.2"/>
+             <text x="${x}" y="${(+y-7)}" fill="#9aa7b4" font-size="8" text-anchor="middle">${i}</text>`; }
+  });
+  return `<div class="mapwrap"><svg class="map" viewBox="0 0 ${W} ${H}">
+      <rect x="0" y="0" width="${W}" height="${H}" rx="10" fill="#0b1119"/>
+      <path d="${path}" fill="none" stroke="#36c5f0" stroke-width="1.6" stroke-dasharray="4 3" opacity=".7"/>
+      ${dots}</svg><div class="maplabel">🟠 Start · numbered stops in order</div></div>`;
+}
+function renderTrip(trip, start, idx){
+  const s=trip.stats;
+  const sportTags=s.sports.map(lg=>`<span class="stag" style="background:${leagueColor(lg).trim()}">${lg}</span>`).join("");
+  let timeline=`<div class="timeline">`;
+  trip.games.forEach((g,i)=>{
+    const leg=s.legs[i], d=g.date;
+    timeline+=`<div class="leg"><span class="ic">🚗</span><span>${Math.round(leg.miles)} mi · ${fmtHrs(leg.hours)} drive</span><span class="drive-bar"></span></div>`;
+    const hr=d.getHours(), ap=hr>=12?"pm":"am", h12=hr%12===0?12:hr%12;
+    timeline+=`<div class="game">
+      <div class="gdate"><div class="d">${d.getDate()}</div><div class="m">${MONTHS[d.getMonth()]}</div></div>
+      <div class="gmain">
+        <div class="gteams"><span class="stag" style="background:${leagueColor(g.league).trim()}">${g.league}</span>${g.awayTeam} @ ${g.homeTeam}</div>
+        <div class="gsub">${g.venue} · ${g.city} · ${DOW[d.getDay()]} ${h12}${ap}</div>
+      </div></div>`;
+  });
+  timeline+=`</div>`;
+  return `<div class="trip card ${idx===0?'open':''}">
+    <div class="trip-head" onclick="this.parentElement.classList.toggle('open')">
+      <span class="badge">${trip.strategy.label}</span>
+      <h3>${trip.strategy.sub}</h3>
+      <div class="trip-meta">
+        <span><b>${s.games}</b> games</span><span><b>${s.miles.toLocaleString()}</b> mi</span>
+        <span><b>${s.hours}</b> hrs driving</span><span>${sportTags}</span>
+      </div><span class="chev">▶</span>
+    </div>
+    <div class="trip-body">${timeline}${renderMap(start, trip.games)}</div></div>`;
+}
+function setBanner(kind, html){
+  $("#banner").innerHTML = html ? `<div class="banner ${kind}">${html}</div>` : "";
+}
+function renderResult(result){
+  const out=$("#out"), sum=$("#summary");
+  if(!result.trips.length){
+    sum.innerHTML="";
+    out.innerHTML=`<div class="empty"><div class="big">🤔</div>
+      <div><b>No makeable trips for those settings.</b></div>
+      <div style="margin-top:6px;max-width:400px">Try a wider date range, a higher daily driving limit, more leagues, or a more central starting point. (Leagues only have games during their season.)</div></div>`;
+    return;
+  }
+  const best=result.trips.reduce((a,b)=>b.stats.games>a.stats.games?b:a);
+  const allSports=new Set(); result.trips.forEach(t=>t.stats.sports.forEach(s=>allSports.add(s)));
+  sum.innerHTML=`
+    <div class="stat"><div class="n">${result.trips.length}</div><div class="l">Itinerary options</div></div>
+    <div class="stat"><div class="n">${best.stats.games}</div><div class="l">Most games in one trip</div></div>
+    <div class="stat"><div class="n">${result.pool.toLocaleString()}</div><div class="l">Games considered</div></div>
+    <div class="stat"><div class="n">${allSports.size}</div><div class="l">Sports in play</div></div>`;
+  out.innerHTML=result.trips.map((t,i)=>renderTrip(t,result.start,i)).join("");
+}
+
+/* ---------- 10. Orchestration ---------- */
+let lastGeo=null; // set by geolocation button
+
+async function resolveStart(){
+  const addr=$("#addr").value.trim();
+  if(addr) return await geocode(addr);
+  if(lastGeo) return lastGeo;
+  throw new Error("no start");
+}
+
+async function run(){
+  const lgWrap=$("#leagues");
+  const leagues=[...lgWrap.querySelectorAll("input:checked")].map(i=>i.value);
+  if(!leagues.length){ alert("Pick at least one sport."); return; }
+
+  const fromVal=$("#from").value, toVal=$("#to").value;
+  const from=new Date(fromVal), to=new Date(toVal);
+  if(!(from<=to)){ alert("Your “back by” date is before your “leave on” date."); return; }
+  if(daysBetween(from,to)>60){ alert("Please keep the trip window under ~60 days for now."); return; }
+
+  const btn=$("#go"); btn.disabled=true; btn.textContent="Building…";
+  setBanner("", "");
+  $("#summary").innerHTML="";
+
+  // 1) resolve starting point
+  let start;
+  $("#out").innerHTML=`<div class="empty"><div class="spinner"></div><div>Finding your starting point…</div></div>`;
+  try{ start=await resolveStart(); }
+  catch(e){
+    btn.disabled=false; btn.textContent="⚡ Build my itineraries";
+    $("#out").innerHTML=`<div class="empty"><div class="big">📍</div><div><b>Enter a starting address or city</b> (or tap 📍 to use your location).</div>${e.message!=="no start"?`<div style="margin-top:6px">Couldn’t find “${$("#addr").value.trim()}”. Try adding a city/state.</div>`:""}</div>`;
+    return;
+  }
+  $("#startHint").textContent="Starting from "+(start.label||"your location").split(",").slice(0,3).join(",");
+
+  // 2) get schedule pool (live or sample)
+  const useLive=$("#live").checked;
+  let pool, source;
+  if(useLive){
+    $("#out").innerHTML=`<div class="empty"><div class="spinner"></div><div>Pulling live schedules from ESPN… <span id="prog"></span></div></div>`;
+    try{
+      pool=await fetchLiveSchedule(from, to, leagues, (d,t)=>{ const p=$("#prog"); if(p) p.textContent=`(${d}/${t})`; });
+      source="live";
+      if(!pool.length){
+        btn.disabled=false; btn.textContent="⚡ Build my itineraries";
+        setBanner("info", `<span>ℹ️</span><div>Live ESPN data reached, but <b>no games</b> were scheduled for ${leagues.join(", ")} in that window. Those leagues may be out of season — try other dates or sports.</div>`);
+        renderResult({pool:0,trips:[],start});
+        return;
+      }
+    }catch(e){
+      pool=generateSchedule(from, to, leagues); source="fallback";
+    }
+  } else {
+    pool=generateSchedule(from, to, leagues); source="sample";
+  }
+
+  // 3) plan + render
+  const result=planFromPool(pool, {start, from:fromVal, to:toVal, maxHrs:+$("#drive").value, cap:+$("#cap").value, leagues});
+  const startName=(start.label||"your location").split(",").slice(0,2).join(",");
+  if(source==="live")     setBanner("ok",   `<span>✅</span><div><b>Live schedules from ESPN.</b> ${pool.length} games found · starting from ${startName}.</div>`);
+  else if(source==="fallback") setBanner("warn", `<span>⚠️</span><div><b>Couldn’t reach live ESPN data</b> (network or CORS). Showing a season-aware <b>sample</b> schedule instead. Your drive math and routing are still real.</div>`);
+  else                    setBanner("info", `<span>ℹ️</span><div>Live mode is off — using the offline <b>sample</b> schedule. Flip on “Use live schedules” for real games.</div>`);
+  renderResult(result);
+
+  btn.disabled=false; btn.textContent="⚡ Build my itineraries";
+  window.scrollTo({top:120, behavior:"smooth"});
+}
+
+/* ---------- 11. Wire up UI ---------- */
+function initUI(){
+  const lgWrap=$("#leagues");
+  Object.keys(LEAGUE_INFO).forEach(lg=>{
+    const div=document.createElement("label"); div.className="lg on";
+    div.innerHTML=`<input type="checkbox" value="${lg}" checked>
+      <span class="dot" style="background:${leagueColor(lg).trim()}"></span>${LEAGUE_INFO[lg].name}`;
+    div.querySelector("input").addEventListener("change",e=>div.classList.toggle("on",e.target.checked));
+    lgWrap.appendChild(div);
+  });
+
+  $("#addr").value="Wrigley Field, Chicago, IL";
+  const start=new Date(2026,5,12), end=new Date(2026,5,24);
+  $("#from").value=dateKey(start); $("#to").value=dateKey(end);
+
+  $("#drive").addEventListener("input",e=>$("#driveVal").textContent=e.target.value+" hrs");
+  $("#cap").addEventListener("input",e=>$("#capVal").textContent=e.target.value+" games");
+  $("#addr").addEventListener("input",()=>{ lastGeo=null; });
+  $("#addr").addEventListener("keydown",e=>{ if(e.key==="Enter") run(); });
+
+  $("#locate").addEventListener("click",()=>{
+    if(!navigator.geolocation){ $("#startHint").textContent="Geolocation not supported — type an address."; return; }
+    $("#startHint").textContent="Locating…";
+    navigator.geolocation.getCurrentPosition(
+      p=>{ lastGeo={lat:p.coords.latitude, lon:p.coords.longitude, label:"Current location"};
+           $("#addr").value=""; $("#startHint").textContent="📍 Using your current location"; },
+      ()=>{ $("#startHint").textContent="Couldn’t get location — type an address instead."; }
+    );
+  });
+
+  $("#go").addEventListener("click",run);
+}
+initUI();
+</script>
+</body>
+</html>
