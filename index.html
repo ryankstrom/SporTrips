@@ -133,6 +133,12 @@
      and cleanly STACK (instead of overflowing) when the card gets narrow */
   .trip-body{display:none;flex-wrap:wrap}
   .trip.open .trip-body{display:flex}
+  /* once the page collapses to one column (controls move on top), always
+     stack the timeline above the map — no cramped side-by-side on phones/tablets */
+  @media(max-width:880px){
+    .trip.open .trip-body{flex-direction:column}
+    .timeline,.mapwrap{flex:1 1 auto;width:100%}
+  }
 
   .timeline{flex:1 1 300px;min-width:0;padding:8px 0}
   .leg{display:flex;gap:12px;padding:6px 18px;color:var(--muted);font-size:12.5px;align-items:center}
